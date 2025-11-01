@@ -4,14 +4,29 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge"; // --- THIS LINE WAS MISSING ---
+import { X, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
-// --- NEW IMPORTS ---
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
-// --- END NEW IMPORTS ---
+
+// --- NEW TYPES ---
+interface Skill {
+  id?: number;
+  name: string;
+  experienceLevel: string;
+  hourlyRate: string; // Use string for form state
+}
+
+const experienceLevels = ["Beginner", "Intermediate", "Expert", "Professional"];
 
 // --- API FUNCTIONS ---
 const fetchTutorProfile = async () => {
@@ -19,10 +34,17 @@ const fetchTutorProfile = async () => {
   return data;
 };
 
+// Fetch all unique skill names for the dropdown
+const fetchAllSkills = async () => {
+  const { data } = await api.get("/skills");
+  return data;
+};
+
 const updateTutorProfile = async (profileData: {
   bio: string;
   hourly_rate: string;
-  skills: string[];
+  avatar_url: string; // Added avatar
+  skills: Skill[];
 }) => {
   const { data } = await api.put("/profile", profileData);
   return data;
@@ -31,23 +53,41 @@ const updateTutorProfile = async (profileData: {
 
 const EditProfile = () => {
   const [bio, setBio] = useState("");
-  const [hourlyRate, setHourlyRate] = useState("");
-  const [skills, setSkills] = useState<string[]>([]);
-  const [newSkill, setNewSkill] = useState("");
+  const [mainHourlyRate, setMainHourlyRate] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [skills, setSkills] = useState<Skill[]>([]);
+
+  // State for the "Add Skill" form
+  const [newSkillName, setNewSkillName] = useState("");
+  const [newSkillLevel, setNewSkillLevel] = useState("Intermediate");
+  const [newSkillRate, setNewSkillRate] = useState("");
+
   const queryClient = useQueryClient();
 
   // --- DATA FETCHING ---
-  const { data: profile, isLoading } = useQuery({
+  const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["tutorProfile"],
     queryFn: fetchTutorProfile,
+  });
+
+  const { data: allSkills, isLoading: isLoadingSkills } = useQuery<string[]>({
+    queryKey: ["allSkills"],
+    queryFn: fetchAllSkills,
   });
 
   // Populate form when data loads
   useEffect(() => {
     if (profile) {
       setBio(profile.bio || "");
-      setHourlyRate(profile.hourly_rate?.toString() || "0");
-      setSkills(profile.skills || []);
+      setMainHourlyRate(profile.hourly_rate?.toString() || "0");
+      setAvatarUrl(profile.avatar_url || "");
+      // Convert decimal rates from DB to strings for the form
+      setSkills(
+        profile.skills.map((s: any) => ({
+          ...s,
+          hourlyRate: s.hourlyRate.toString(),
+        })) || []
+      );
     }
   }, [profile]);
 
@@ -57,6 +97,7 @@ const EditProfile = () => {
     onSuccess: () => {
       toast.success("Profile updated successfully!");
       queryClient.invalidateQueries({ queryKey: ["tutorProfile"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] }); // Also update dashboard
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to update profile");
@@ -66,26 +107,44 @@ const EditProfile = () => {
 
   const handleAddSkill = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSkill.trim()) return;
-    if (skills.includes(newSkill.trim())) {
+    if (!newSkillName || !newSkillLevel || !newSkillRate) {
+      toast.error("Please fill all skill fields (Name, Level, and Rate)");
+      return;
+    }
+    if (skills.find((s) => s.name === newSkillName)) {
       toast.error("Skill already added");
       return;
     }
-    setSkills([...skills, newSkill.trim()]);
-    setNewSkill("");
-    toast.success("Skill added");
+    setSkills([
+      ...skills,
+      {
+        name: newSkillName,
+        experienceLevel: newSkillLevel,
+        hourlyRate: newSkillRate,
+      },
+    ]);
+    // Reset form
+    setNewSkillName("");
+    setNewSkillLevel("Intermediate");
+    setNewSkillRate("");
   };
 
-  const handleRemoveSkill = (skillToRemove: string) => {
-    setSkills(skills.filter((skill) => skill !== skillToRemove));
+  const handleRemoveSkill = (skillToRemove: Skill) => {
+    setSkills(skills.filter((skill) => skill.name !== skillToRemove.name));
     toast.success("Skill removed");
   };
 
   const handleSaveProfile = () => {
-    mutation.mutate({ bio, hourly_rate: hourlyRate, skills });
+    mutation.mutate({
+      bio,
+      hourly_rate: mainHourlyRate,
+      avatar_url: avatarUrl,
+      skills,
+    });
   };
 
-  // --- LOADING STATE ---
+  const isLoading = isLoadingProfile || isLoadingSkills;
+
   if (isLoading) {
     return (
       <Card className="p-6">
@@ -109,7 +168,6 @@ const EditProfile = () => {
       </Card>
     );
   }
-  // --- END LOADING STATE ---
 
   return (
     <Card className="p-6">
@@ -126,50 +184,131 @@ const EditProfile = () => {
             placeholder="Tell students about your experience and teaching style..."
             disabled={mutation.isPending}
           />
-          <p className="text-xs text-muted-foreground">
-            {bio.length} characters
-          </p>
+          <p className="text-xs text-muted-foreground">{bio.length} characters</p>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="hourlyRate">Hourly Rate (₹)</Label>
-          <Input
-            id="hourlyRate"
-            type="number"
-            value={hourlyRate}
-            onChange={(e) => setHourlyRate(e.target.value)}
-            min="0"
-            step="50"
-            disabled={mutation.isPending}
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="mainHourlyRate">Main Hourly Rate (₹)</Label>
+            <Input
+              id="mainHourlyRate"
+              type="number"
+              value={mainHourlyRate}
+              onChange={(e) => setMainHourlyRate(e.target.value)}
+              min="0"
+              step="50"
+              disabled={mutation.isPending}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="avatarUrl">Avatar URL</Label>
+            <Input
+              id="avatarUrl"
+              type="url"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              placeholder="https://your-image.com/avatar.png"
+              disabled={mutation.isPending}
+            />
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>Skills & Subjects</Label>
-          <div className="flex flex-wrap gap-2 mb-3">
+        <div className="space-y-4">
+          <Label>Your Skills & Subjects</Label>
+          {/* List of added skills */}
+          <div className="space-y-3">
+            {skills.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No skills added yet.
+              </p>
+            )}
             {skills.map((skill) => (
-              <Badge key={skill} variant="secondary" className="gap-1 pr-1">
-                {skill}
-                <button
+              <div
+                key={skill.name}
+                className="flex items-center gap-2 rounded-md border p-3"
+              >
+                <div className="flex-1 font-semibold">{skill.name}</div>
+                <Badge variant="outline">{skill.experienceLevel}</Badge>
+                <div className="text-sm font-medium">₹{skill.hourlyRate}/hr</div>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => handleRemoveSkill(skill)}
-                  className="ml-1 rounded-full hover:bg-muted"
                   disabled={mutation.isPending}
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
+                  <X className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
             ))}
           </div>
 
-          <form onSubmit={handleAddSkill} className="flex gap-2">
-            <Input
-              value={newSkill}
-              onChange={(e) => setNewSkill(e.target.value)}
-              placeholder="Add a skill or subject"
+          {/* Add new skill form */}
+          <form
+            onSubmit={handleAddSkill}
+            className="rounded-lg border bg-muted/50 p-4"
+          >
+            <h4 className="font-semibold mb-3">Add New Skill</h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="newSkillName">Skill Name</Label>
+                <Select
+                  value={newSkillName}
+                  onValueChange={setNewSkillName}
+                  disabled={mutation.isPending}
+                >
+                  <SelectTrigger id="newSkillName">
+                    <SelectValue placeholder="Select a skill" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allSkills?.map((skill) => (
+                      <SelectItem key={skill} value={skill}>
+                        {skill}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="newSkillLevel">Experience</Label>
+                <Select
+                  value={newSkillLevel}
+                  onValueChange={setNewSkillLevel}
+                  disabled={mutation.isPending}
+                >
+                  <SelectTrigger id="newSkillLevel">
+                    <SelectValue placeholder="Level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {experienceLevels.map((level) => (
+                      <SelectItem key={level} value={level}>
+                        {level}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="newSkillRate">Rate (₹/hr)</Label>
+                <Input
+                  id="newSkillRate"
+                  type="number"
+                  value={newSkillRate}
+                  onChange={(e) => setNewSkillRate(e.target.value)}
+                  placeholder="e.g., 500"
+                  disabled={mutation.isPending}
+                />
+              </div>
+            </div>
+            <Button
+              type="submit"
+              size="sm"
+              className="mt-4 w-full"
               disabled={mutation.isPending}
-            />
-            <Button type="submit" disabled={mutation.isPending}>
-              Add
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add Skill
             </Button>
           </form>
         </div>
@@ -177,9 +316,10 @@ const EditProfile = () => {
         <Button
           onClick={handleSaveProfile}
           className="w-full"
+          size="lg"
           disabled={mutation.isPending}
         >
-          {mutation.isPending ? "Saving..." : "Save Changes"}
+          {mutation.isPending ? "Saving..." : "Save Profile Changes"}
         </Button>
       </div>
     </Card>
