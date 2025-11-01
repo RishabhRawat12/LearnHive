@@ -15,6 +15,7 @@ model User {
   password_hash String
   role          Role    @default(student)
   created_at    DateTime @default(now())
+  avatar_url    String?
 
   tutorProfile  TutorProfile?
   bookings      Booking[]

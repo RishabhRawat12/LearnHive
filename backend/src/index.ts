@@ -1,10 +1,15 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import authRoutes from "./routes/auth"; // Import the auth routes
-import tutorRoutes from "./routes/tutors"; // Import the new tutor routes
-import skillRoutes from "./routes/skills"; // Import the new skill routes
+import authRoutes from "./routes/auth";
+import tutorRoutes from "./routes/tutors";
+import skillRoutes from "./routes/skills";
 import { protect } from "./middleware/auth"; // Import the 'protect' middleware
+
+// --- NEW IMPORTS ---
+import dashboardRoutes from "./routes/dashboard";
+import bookingRoutes from "./routes/bookings";
+import reviewRoutes from "./routes/reviews";
 
 // Load .env variables
 dotenv.config();
@@ -13,29 +18,21 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // --- Global Middleware ---
-app.use(cors({ origin: "http://localhost:8080" })); // Allow frontend
-app.use(express.json()); // Parse JSON request bodies
+app.use(cors({ origin: "http://localhost:8080" }));
+app.use(express.json());
 
-// --- API Routes ---
-
-// Public auth routes
+// --- Public API Routes ---
 app.use("/api/auth", authRoutes);
-
-// Public routes for tutors and skills
 app.use("/api/tutors", tutorRoutes);
-app.use("/api/skills", skillRoutes); // Use skill routes
+app.use("/api/skills", skillRoutes); // Use skill routes (as per your file)
 
-// --- Example Protected Route ---
-// The 'protect' middleware runs first.
-// If the token is invalid, it will send a 401 error.
-// If valid, it will call the next function.
-app.get("/api/dashboard", protect, (req, res) => {
-  // We can safely access req.user here because of the 'protect' middleware
-  res.json({
-    message: `Welcome to your dashboard, user #${req.user?.userId}!`,
-    role: req.user?.role,
-  });
-});
+// --- Protected API Routes ---
+// All routes defined after this will require a valid token
+app.use(protect);
+
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/bookings", bookingRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 // Start the server
 app.listen(port, () => {
