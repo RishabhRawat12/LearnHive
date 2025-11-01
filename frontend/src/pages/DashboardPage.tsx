@@ -5,84 +5,138 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Star, User, Mail } from "lucide-react";
+import { Calendar, Star, User, Mail, AlertCircle } from "lucide-react";
 import ManageAvailability from "@/components/ManageAvailability";
 import ManageLectures from "@/components/ManageLectures";
 import EditProfile from "@/components/EditProfile";
 import ReviewForm from "@/components/ReviewForm";
 
-// Mock user data
-const mockUser = {
-  name: "Arjun Mehta",
-  email: "arjun.mehta@example.com",
-  avatar: "",
-  isTutor: true, // Set to false to see learner view
-  totalSessions: 12,
-  averageRating: 4.7,
-  bookings: [
-    {
-      id: 1,
-      tutorName: "Priya Sharma",
-      subject: "Mathematics",
-      date: "2025-10-25",
-      time: "10:00 AM",
-      status: "completed",
-    },
-    {
-      id: 2,
-      tutorName: "Rajesh Kumar",
-      subject: "Programming",
-      date: "2025-10-28",
-      time: "2:00 PM",
-      status: "upcoming",
-    },
-    {
-      id: 3,
-      tutorName: "Anita Patel",
-      subject: "English",
-      date: "2025-11-02",
-      time: "4:00 PM",
-      status: "upcoming",
-    },
-  ],
+// --- NEW IMPORTS ---
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
+// --- END NEW IMPORTS ---
+
+// --- REMOVE MOCK DATA ---
+// const mockUser = { ... }
+// --- END REMOVE MOCK DATA ---
+
+// API fetch function
+const fetchDashboard = async () => {
+  const { data } = await api.get("/dashboard");
+  return data;
 };
 
 const DashboardPage = () => {
-  const [user] = useState(mockUser);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<typeof mockUser.bookings[0] | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null); // Use 'any' for now
 
-  const handleOpenReviewModal = (booking: typeof mockUser.bookings[0]) => {
+  // --- NEW HOOKS ---
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const {
+    data: user,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: fetchDashboard,
+  });
+  // --- END NEW HOOKS ---
+
+  const handleLogout = () => {
+    logout();
+    navigate("/"); // Redirect to home after logout
+  };
+
+  const handleOpenReviewModal = (booking: any) => {
     setSelectedBooking(booking);
     setReviewModalOpen(true);
   };
 
-  const upcomingBookings = user.bookings.filter(b => b.status === 'upcoming');
-  const pastBookings = user.bookings.filter(b => b.status === 'completed');
+  // --- DERIVED STATE: Moved inside render ---
+  const upcomingBookings =
+    user?.bookings.filter((b: any) => b.status === "upcoming") || [];
+  const pastBookings =
+    user?.bookings.filter((b: any) => b.status === "completed") || [];
 
   const getInitials = (name: string) => {
     return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
       .toUpperCase();
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'default';
-      case 'upcoming':
-        return 'secondary';
+      case "completed":
+        return "default";
+      case "upcoming":
+        return "secondary";
       default:
-        return 'default';
+        return "default";
     }
   };
 
+  // --- LOADING STATE ---
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar isAuthenticated={true} onLogout={handleLogout} />
+        <main className="container mx-auto px-4 py-8">
+          <Card className="mb-6 p-8">
+            <div className="flex items-start gap-6">
+              <Skeleton className="h-24 w-24 rounded-full" />
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-8 w-1/2" />
+                <Skeleton className="h-6 w-3/4" />
+                <div className="flex gap-6 pt-2">
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-24" />
+                </div>
+              </div>
+            </div>
+          </Card>
+          <Skeleton className="h-10 w-1/3 mb-6" />
+          <Card className="p-6">
+            <Skeleton className="h-8 w-1/4 mb-6" />
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  // --- ERROR STATE ---
+  if (isError || !user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar isAuthenticated={true} onLogout={handleLogout} />
+        <main className="container mx-auto px-4 py-8 text-center">
+          <Card className="p-12">
+            <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
+            <h1 className="text-2xl font-bold mb-2">Error Loading Dashboard</h1>
+            <p className="text-muted-foreground mb-4">
+              There was a problem fetching your data. Please try again.
+            </p>
+            <Button onClick={handleLogout}>Logout and Try Again</Button>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  // --- SUCCESS STATE (user data is available) ---
   return (
     <div className="min-h-screen bg-background">
-      <Navbar isAuthenticated={true} />
-      
+      <Navbar isAuthenticated={true} onLogout={handleLogout} />
+
       <main className="container mx-auto px-4 py-8">
         {/* Header */}
         <Card className="mb-6 p-8">
@@ -100,15 +154,21 @@ const DashboardPage = () => {
               
               <div className="flex gap-6">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{user.totalSessions}</div>
-                  <div className="text-sm text-muted-foreground">Total Sessions</div>
+                  <div className="text-2xl font-bold text-primary">
+                    {user.totalSessions}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Total Sessions
+                  </div>
                 </div>
                 <div className="text-center">
                   <div className="flex items-center gap-1 text-2xl font-bold">
                     <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                     {user.averageRating}
                   </div>
-                  <div className="text-sm text-muted-foreground">Average Rating</div>
+                  <div className="text-sm text-muted-foreground">
+                    Average Rating
+                  </div>
                 </div>
               </div>
             </div>
@@ -143,7 +203,9 @@ const DashboardPage = () => {
                 <div className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <div className="text-sm text-muted-foreground">Email Address</div>
+                    <div className="text-sm text-muted-foreground">
+                      Email Address
+                    </div>
                     <div className="font-medium">{user.email}</div>
                   </div>
                 </div>
@@ -157,33 +219,44 @@ const DashboardPage = () => {
                 <h2 className="mb-6 text-2xl font-bold">Upcoming Sessions</h2>
                 <div className="space-y-4">
                   {upcomingBookings.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No upcoming sessions</p>
+                    <p className="text-center text-muted-foreground py-8">
+                      No upcoming sessions
+                    </p>
                   ) : (
-                    upcomingBookings.map((booking) => (
+                    upcomingBookings.map((booking: any) => (
                       <div
                         key={booking.id}
                         className="flex items-center justify-between rounded-lg border bg-card p-4"
                       >
                         <div className="flex-1">
                           <div className="mb-1 flex items-center gap-2">
-                            <h3 className="font-semibold">{booking.tutorName}</h3>
+                            <h3 className="font-semibold">
+                              {booking.tutorName}
+                            </h3>
                             <Badge variant={getStatusColor(booking.status)}>
                               {booking.status}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">{booking.subject}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {booking.subject}
+                          </p>
                         </div>
                         <div className="flex items-center gap-4 text-sm">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                             <span>
-                              {new Date(booking.date).toLocaleDateString('en-IN', {
-                                month: 'short',
-                                day: 'numeric',
-                              })}
+                              {new Date(booking.date).toLocaleDateString(
+                                "en-IN",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                }
+                              )}
                             </span>
                           </div>
-                          <span className="text-muted-foreground">{booking.time}</span>
+                          <span className="text-muted-foreground">
+                            {booking.time}
+                          </span>
                         </div>
                       </div>
                     ))
@@ -195,33 +268,44 @@ const DashboardPage = () => {
                 <h2 className="mb-6 text-2xl font-bold">Past Sessions</h2>
                 <div className="space-y-4">
                   {pastBookings.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">No past sessions</p>
+                    <p className="text-center text-muted-foreground py-8">
+                      No past sessions
+                    </p>
                   ) : (
-                    pastBookings.map((booking) => (
+                    pastBookings.map((booking: any) => (
                       <div
                         key={booking.id}
                         className="flex items-center justify-between rounded-lg border bg-card p-4"
                       >
                         <div className="flex-1">
                           <div className="mb-1 flex items-center gap-2">
-                            <h3 className="font-semibold">{booking.tutorName}</h3>
+                            <h3 className="font-semibold">
+                              {booking.tutorName}
+                            </h3>
                             <Badge variant={getStatusColor(booking.status)}>
                               {booking.status}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">{booking.subject}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {booking.subject}
+                          </p>
                         </div>
                         <div className="flex items-center gap-4 text-sm">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                             <span>
-                              {new Date(booking.date).toLocaleDateString('en-IN', {
-                                month: 'short',
-                                day: 'numeric',
-                              })}
+                              {new Date(booking.date).toLocaleDateString(
+                                "en-IN",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                }
+                              )}
                             </span>
                           </div>
-                          <span className="text-muted-foreground">{booking.time}</span>
+                          <span className="text-muted-foreground">
+                            {booking.time}
+                          </span>
                           <Button
                             size="sm"
                             variant="outline"

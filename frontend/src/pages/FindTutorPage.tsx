@@ -9,112 +9,74 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 
-// Mock skills data
-const mockSkills = [
-  "Mathematics",
-  "Physics",
-  "Chemistry",
-  "Programming",
-  "Web Development",
-  "Python",
-  "Java",
-  "English",
-  "IELTS",
-  "Science",
-  "React",
-  "Node.js",
-  "Data Science",
-];
+// --- NEW IMPORTS ---
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
+// --- END NEW IMPORTS ---
 
-// Mock tutors data
-const mockTutors = [
-  {
-    id: 1,
-    name: "Priya Sharma",
-    bio: "Experienced Mathematics tutor with 8+ years of teaching experience. Specialized in calculus, algebra, and competitive exam preparation.",
-    hourly_rate: 800,
-    average_rating: 4.8,
-    subjects: ["Mathematics", "Physics"],
-  },
-  {
-    id: 2,
-    name: "Rajesh Kumar",
-    bio: "Computer Science expert passionate about teaching programming. Proficient in Python, Java, and web development.",
-    hourly_rate: 1200,
-    average_rating: 4.9,
-    subjects: ["Programming", "Web Development"],
-  },
-  {
-    id: 3,
-    name: "Anita Patel",
-    bio: "English language specialist helping students improve their communication skills and IELTS preparation.",
-    hourly_rate: 600,
-    average_rating: 4.7,
-    subjects: ["English", "IELTS"],
-  },
-  {
-    id: 4,
-    name: "Vikram Singh",
-    bio: "Chemistry tutor with a knack for making complex concepts simple. Specialized in organic and inorganic chemistry.",
-    hourly_rate: 750,
-    average_rating: 4.6,
-    subjects: ["Chemistry", "Science"],
-  },
-];
+// --- REMOVE MOCK DATA ---
+// const mockSkills = [...]
+// const mockTutors = [...]
+// --- END REMOVE MOCK DATA ---
+
+// API fetch functions
+const fetchSkills = async () => {
+  const { data } = await api.get("/skills");
+  return data;
+};
+
+const fetchTutors = async (
+  search: string,
+  skills: string[],
+  minRating: string
+) => {
+  const params = new URLSearchParams();
+  if (search) params.append("search", search);
+  if (skills.length > 0) params.append("skills", skills.join(","));
+  if (minRating !== "0") params.append("minRating", minRating);
+
+  const { data } = await api.get("/tutors", { params });
+  return data;
+};
 
 const FindTutorPage = () => {
   const [searchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [minRating, setMinRating] = useState('0');
-  const [filteredTutors, setFilteredTutors] = useState(mockTutors);
+  const [minRating, setMinRating] = useState("0");
+  
+  // --- REMOVE useState for filteredTutors ---
+  // const [filteredTutors, setFilteredTutors] = useState(mockTutors);
+
+  const { data: skills, isLoading: isLoadingSkills } = useQuery<string[]>({
+    queryKey: ["skills"],
+    queryFn: fetchSkills,
+  });
+
+  const {
+    data: filteredTutors,
+    isLoading: isLoadingTutors,
+  } = useQuery({
+    queryKey: ["tutors", searchQuery, selectedSkills, minRating],
+    queryFn: () => fetchTutors(searchQuery, selectedSkills, minRating),
+  });
 
   const toggleSkill = (skill: string) => {
-    setSelectedSkills(prev =>
+    setSelectedSkills((prev) =>
       prev.includes(skill)
-        ? prev.filter(s => s !== skill)
+        ? prev.filter((s) => s !== skill)
         : [...prev, skill]
     );
   };
 
-  useEffect(() => {
-    let filtered = mockTutors;
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(tutor =>
-        tutor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tutor.bio.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        tutor.subjects.some(subject => 
-          subject.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      );
-    }
-
-    // Filter by selected skills
-    if (selectedSkills.length > 0) {
-      filtered = filtered.filter(tutor =>
-        selectedSkills.some(skill =>
-          tutor.subjects.some(subject =>
-            subject.toLowerCase() === skill.toLowerCase()
-          )
-        )
-      );
-    }
-
-    // Filter by rating
-    const rating = parseFloat(minRating);
-    if (rating > 0) {
-      filtered = filtered.filter(tutor => tutor.average_rating >= rating);
-    }
-
-    setFilteredTutors(filtered);
-  }, [searchQuery, selectedSkills, minRating]);
+  // --- REMOVE useEffect filter logic ---
+  // useEffect(() => { ... }, [searchQuery, selectedSkills, minRating]);
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6 lg:grid-cols-4">
           {/* Filter Sidebar */}
@@ -123,7 +85,7 @@ const FindTutorPage = () => {
               <div>
                 <h2 className="mb-4 text-lg font-bold">Filters</h2>
               </div>
-
+              {/* Search Input */}
               <div className="space-y-2">
                 <Label htmlFor="subject">Search</Label>
                 <Input
@@ -134,11 +96,13 @@ const FindTutorPage = () => {
                 />
               </div>
 
+              {/* Skills Filter */}
               <div className="space-y-3">
                 <Label>Filter by Skills</Label>
+                {/* Selected skills badges */}
                 {selectedSkills.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {selectedSkills.map(skill => (
+                    {selectedSkills.map((skill) => (
                       <Badge
                         key={skill}
                         variant="default"
@@ -151,23 +115,34 @@ const FindTutorPage = () => {
                     ))}
                   </div>
                 )}
+                {/* Available skills badges */}
                 <div className="flex flex-wrap gap-2">
-                  {mockSkills.map(skill => (
-                    <Badge
-                      key={skill}
-                      variant={selectedSkills.includes(skill) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleSkill(skill)}
-                    >
-                      {skill}
-                    </Badge>
-                  ))}
+                  {isLoadingSkills
+                    ? Array.from({ length: 6 }).map((_, i) => (
+                        <Skeleton key={i} className="h-6 w-20 rounded-full" />
+                      ))
+                    : skills?.map((skill) => (
+                        <Badge
+                          key={skill}
+                          variant={
+                            selectedSkills.includes(skill)
+                              ? "default"
+                              : "outline"
+                          }
+                          className="cursor-pointer"
+                          onClick={() => toggleSkill(skill)}
+                        >
+                          {skill}
+                        </Badge>
+                      ))}
                 </div>
               </div>
 
+              {/* Rating Filter */}
               <div className="space-y-3">
                 <Label>Minimum Rating</Label>
                 <RadioGroup value={minRating} onValueChange={setMinRating}>
+                  {/* ... radio group items ... */}
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="0" id="all" />
                     <Label htmlFor="all" className="font-normal cursor-pointer">
@@ -196,19 +171,44 @@ const FindTutorPage = () => {
             <div className="mb-6">
               <h1 className="text-3xl font-bold">Find Tutors</h1>
               <p className="text-muted-foreground">
-                Showing {filteredTutors.length} tutor{filteredTutors.length !== 1 ? 's' : ''}
+                Showing {filteredTutors?.length || 0} tutor
+                {filteredTutors?.length !== 1 ? "s" : ""}
               </p>
             </div>
 
             <div className="space-y-4">
-              {filteredTutors.length > 0 ? (
-                filteredTutors.map((tutor) => (
-                  <TutorCard key={tutor.id} tutor={tutor} />
+              {isLoadingTutors ? (
+                // Loading Skeleton
+                Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i} className="p-6">
+                    <div className="flex items-start gap-6">
+                      <Skeleton className="h-20 w-20 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-6 w-1/2" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                      </div>
+                      <div className="flex flex-col items-end gap-3">
+                        <Skeleton className="h-8 w-24" />
+                        <Skeleton className="h-10 w-32" />
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              ) : filteredTutors && filteredTutors.length > 0 ? (
+                // Real Data
+                filteredTutors.map((tutor: any) => (
+                  <TutorCard
+                    key={tutor.user_id}
+                    tutor={{ ...tutor, id: tutor.user_id, subjects: tutor.skills }}
+                  />
                 ))
               ) : (
+                // No Results
                 <Card className="p-12 text-center">
                   <p className="text-lg text-muted-foreground">
-                    No tutors found matching your criteria. Try adjusting your filters.
+                    No tutors found matching your criteria. Try adjusting your
+                    filters.
                   </p>
                 </Card>
               )}
