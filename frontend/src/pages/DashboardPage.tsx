@@ -29,9 +29,20 @@ const fetchDashboard = async () => {
   return data;
 };
 
+// Define Booking type based on API response
+interface Booking {
+  id: number;
+  tutorName: string;
+  subject: string;
+  date: string;
+  time: string;
+  status: "upcoming" | "completed" | "cancelled";
+  hasReview: boolean; // This property is provided by the dashboard API
+}
+
 const DashboardPage = () => {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<any>(null); // Use 'any' for now
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   // --- NEW HOOKS ---
   const { logout } = useAuth();
@@ -51,18 +62,19 @@ const DashboardPage = () => {
     navigate("/"); // Redirect to home after logout
   };
 
-  const handleOpenReviewModal = (booking: any) => {
+  const handleOpenReviewModal = (booking: Booking) => {
     setSelectedBooking(booking);
     setReviewModalOpen(true);
   };
 
   // --- DERIVED STATE: Moved inside render ---
-  const upcomingBookings =
-    user?.bookings.filter((b: any) => b.status === "upcoming") || [];
-  const pastBookings =
-    user?.bookings.filter((b: any) => b.status === "completed") || [];
+  const upcomingBookings: Booking[] =
+    user?.bookings.filter((b: Booking) => b.status === "upcoming") || [];
+  const pastBookings: Booking[] =
+    user?.bookings.filter((b: Booking) => b.status === "completed") || [];
 
   const getInitials = (name: string) => {
+    if (!name) return "";
     return name
       .split(" ")
       .map((n) => n[0])
@@ -147,11 +159,11 @@ const DashboardPage = () => {
                 {getInitials(user.name)}
               </AvatarFallback>
             </Avatar>
-            
+
             <div className="flex-1">
               <h1 className="mb-2 text-3xl font-bold">{user.name}</h1>
               <p className="mb-4 text-muted-foreground">{user.email}</p>
-              
+
               <div className="flex gap-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">
@@ -223,7 +235,7 @@ const DashboardPage = () => {
                       No upcoming sessions
                     </p>
                   ) : (
-                    upcomingBookings.map((booking: any) => (
+                    upcomingBookings.map((booking: Booking) => (
                       <div
                         key={booking.id}
                         className="flex items-center justify-between rounded-lg border bg-card p-4"
@@ -272,7 +284,7 @@ const DashboardPage = () => {
                       No past sessions
                     </p>
                   ) : (
-                    pastBookings.map((booking: any) => (
+                    pastBookings.map((booking: Booking) => (
                       <div
                         key={booking.id}
                         className="flex items-center justify-between rounded-lg border bg-card p-4"
@@ -306,13 +318,20 @@ const DashboardPage = () => {
                           <span className="text-muted-foreground">
                             {booking.time}
                           </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenReviewModal(booking)}
-                          >
-                            Leave Review
-                          </Button>
+                          
+                          {/* --- MODIFICATION HERE --- */}
+                          {/* Only show button if a review has NOT been submitted */}
+                          {!booking.hasReview && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenReviewModal(booking)}
+                            >
+                              Leave Review
+                            </Button>
+                          )}
+                          {/* --- END MODIFICATION --- */}
+                          
                         </div>
                       </div>
                     ))

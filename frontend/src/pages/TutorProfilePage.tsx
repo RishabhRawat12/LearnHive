@@ -13,7 +13,7 @@ import {
   Award,
   AlertCircle,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "sonner"; // Ensure toast is imported
 import ReviewsList from "@/components/ReviewsList";
 
 // --- NEW IMPORTS ---
@@ -70,6 +70,7 @@ const TutorProfilePage = () => {
   };
 
   const getInitials = (name: string) => {
+    if (!name) return "";
     return name
       .split(" ")
       .map((n) => n[0])
@@ -332,9 +333,17 @@ const TutorProfilePage = () => {
                   <span>({tutor.reviews.length} reviews)</span>
                 </div>
               </div>
-              <Button className="w-full" size="lg">
+              
+              {/* --- MODIFICATION HERE --- */}
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={() => toast.info("Contact feature is coming soon!")}
+              >
                 Contact Tutor
               </Button>
+              {/* --- END MODIFICATION --- */}
+              
             </Card>
           </div>
         </div>
