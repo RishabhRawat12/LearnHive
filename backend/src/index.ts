@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth"; // Import the auth routes
+import tutorRoutes from "./routes/tutors"; // Import the new tutor routes
+import skillRoutes from "./routes/skills"; // Import the new skill routes
 import { protect } from "./middleware/auth"; // Import the 'protect' middleware
 
 // Load .env variables
@@ -16,9 +18,12 @@ app.use(express.json()); // Parse JSON request bodies
 
 // --- API Routes ---
 
-// All auth routes are handled by the 'authRoutes' file
-// This creates POST /api/auth/register and POST /api/auth/login
+// Public auth routes
 app.use("/api/auth", authRoutes);
+
+// Public routes for tutors and skills
+app.use("/api/tutors", tutorRoutes);
+app.use("/api/skills", skillRoutes); // Use skill routes
 
 // --- Example Protected Route ---
 // The 'protect' middleware runs first.
