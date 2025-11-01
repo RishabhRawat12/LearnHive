@@ -4,6 +4,31 @@ import prisma from "../db";
 const router = Router();
 
 /**
+ * GET /api/lectures
+ * Gets all lectures for the logged-in tutor.
+ * Protected by 'protect' and 'checkRole("tutor")' middleware.
+ */
+router.get("/", async (req, res) => {
+  // @ts-ignore
+  const { userId: tutor_user_id } = req.user;
+
+  try {
+    const lectures = await prisma.lecture.findMany({
+      where: {
+        tutor_user_id: tutor_user_id,
+      },
+      orderBy: {
+        id: "desc", // Show newest first
+      },
+    });
+    res.json(lectures);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching lectures" });
+  }
+});
+
+/**
  * POST /api/lectures
  * Adds a new lecture for the tutor.
  * Protected by 'protect' and 'checkRole("tutor")' middleware.

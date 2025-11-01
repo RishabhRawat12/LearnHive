@@ -17,7 +17,7 @@ router.get("/", async (req, res) => {
     // 1. Fetch basic user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true, avatar_url: true }, // Use avatar_url from schema
+      select: { name: true, email: true, avatar_url: true },
     });
 
     if (!user) {
@@ -33,10 +33,12 @@ router.get("/", async (req, res) => {
             tutorProfile: {
               include: {
                 user: { select: { name: true } }, // Get tutor's name
+                skills: { select: { name: true }, take: 1 }, // Get first skill as subject
               },
             },
           },
         },
+        review: true, // Check if a review exists
       },
       orderBy: { availability: { start_time: "desc" } },
     });
@@ -45,19 +47,50 @@ router.get("/", async (req, res) => {
     const formattedBookings = studentBookings.map((b) => ({
       id: b.id,
       tutorName: b.availability.tutorProfile.user.name,
-      subject: "Subject placeholder", // Your schema doesn't link bookings to subjects
+      subject: b.availability.tutorProfile.skills[0]?.name || "Tutoring",
       date: b.availability.start_time.toISOString().split("T")[0],
       time: b.availability.start_time.toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
       }),
       status: b.status.toLowerCase(),
+      hasReview: !!b.review, // Let frontend know if review is submitted
     }));
 
-    // 4. Calculate stats
-    const totalSessions = formattedBookings.length;
-    // Real rating would be on the user/tutor model, this is a placeholder
-    const averageRating = 4.7;
+    // 4. Calculate stats based on role
+    let totalSessions = 0;
+    let averageRating = 0;
+
+    if (role === Role.tutor) {
+      // For a tutor, get their received ratings
+      const tutorReviews = await prisma.review.findMany({
+        where: { tutor_user_id: userId },
+        select: { rating: true },
+      });
+      const tutorBookings = await prisma.booking.findMany({
+        where: { availability: { tutor_user_id: userId } },
+      });
+
+      totalSessions = tutorBookings.length;
+      if (tutorReviews.length > 0) {
+        averageRating =
+          tutorReviews.reduce((acc, r) => acc + r.rating, 0) /
+          tutorReviews.length;
+      }
+    } else {
+      // For a student, get their given ratings (if we want to show that)
+      // For now, we'll just show their session count
+      totalSessions = studentBookings.length;
+      const studentReviews = await prisma.review.findMany({
+        where: { student_user_id: userId },
+        select: { rating: true },
+      });
+      if (studentReviews.length > 0) {
+        averageRating =
+          studentReviews.reduce((acc, r) => acc + r.rating, 0) /
+          studentReviews.length;
+      }
+    }
 
     const dashboardData = {
       name: user.name,
@@ -65,7 +98,7 @@ router.get("/", async (req, res) => {
       avatar: user.avatar_url,
       isTutor: role === Role.tutor,
       totalSessions,
-      averageRating,
+      averageRating: parseFloat(averageRating.toFixed(1)),
       bookings: formattedBookings,
     };
 

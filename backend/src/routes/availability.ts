@@ -4,6 +4,34 @@ import prisma from "../db";
 const router = Router();
 
 /**
+ * GET /api/availability
+ * Gets all availability slots for the logged-in tutor.
+ * Protected by 'protect' and 'checkRole("tutor")' middleware.
+ */
+router.get("/", async (req, res) => {
+  // @ts-ignore
+  const { userId: tutor_user_id } = req.user;
+
+  try {
+    const slots = await prisma.availability.findMany({
+      where: {
+        tutor_user_id: tutor_user_id,
+        start_time: {
+          gte: new Date(), // Only get future slots
+        },
+      },
+      orderBy: {
+        start_time: "asc",
+      },
+    });
+    res.json(slots);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching availability" });
+  }
+});
+
+/**
  * POST /api/availability
  * Adds a new availability slot for the tutor.
  * Protected by 'protect' and 'checkRole("tutor")' middleware.
@@ -14,7 +42,9 @@ router.post("/", async (req, res) => {
   const { start_time, end_time } = req.body;
 
   if (!start_time || !end_time) {
-    return res.status(400).json({ message: "Start time and end time are required" });
+    return res
+      .status(400)
+      .json({ message: "Start time and end time are required" });
   }
 
   try {
