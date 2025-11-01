@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int     @id @default(autoincrement())
+  email         String  @unique
+  name          String
+  password_hash String
+  role          Role    @default(student)
+  created_at    DateTime @default(now())
+
+  tutorProfile  TutorProfile?
+  bookings      Booking[]
+  reviews       Review[]
+}
+
+enum Role {
+  student
+  tutor
+}
+
+model TutorProfile {
+  user_id     Int     @id
+  bio         String? @db.Text
+  hourly_rate Decimal? @db.Decimal(10, 2)
+  avatar_url  String?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  skills Skill[]
+  availability Availability[]
+  reviews Review[]
+  lectures Lecture[]
+}
+
+model Skill {
+  id                Int     @id @default(autoincrement())
+  tutor_profile_id  Int
+  name              String
+  experienceLevel   String
+  hourlyRate        Decimal @db.Decimal(10, 2)
+
+  tutorProfile TutorProfile @relation(fields: [tutor_profile_id], references: [user_id], onDelete: Cascade)
+}
+
+model Availability {
+  id              Int     @id @default(autoincrement())
+  tutor_user_id   Int
+  start_time      DateTime
+  end_time        DateTime
+  is_booked       Boolean @default(false)
+
+  tutorProfile TutorProfile @relation(fields: [tutor_user_id], references: [user_id], onDelete: Cascade)
+  booking      Booking?
+}
+
+model Booking {
+  id                Int     @id @default(autoincrement())
+  student_user_id   Int
+  availability_id   Int     @unique
+  status            BookingStatus @default(upcoming)
+  created_at        DateTime @default(now())
+
+  student User @relation(fields: [student_user_id], references: [id], onDelete: Cascade)
+  availability Availability @relation(fields: [availability_id], references: [id], onDelete: Cascade)
+  review       Review?
+}
+
+enum BookingStatus {
+  upcoming
+  completed
+  cancelled
+}
+
+model Review {
+  id              Int     @id @default(autoincrement())
+  booking_id      Int     @unique
+  student_user_id Int
+  tutor_user_id   Int
+  rating          Int
+  comment         String? @db.Text
+  created_at      DateTime @default(now())
+
+  booking Booking @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+  student User @relation(fields: [student_user_id], references: [id], onDelete: NoAction)
+  tutor TutorProfile @relation(fields: [tutor_user_id], references: [user_id], onDelete: Cascade)
+}
+
+model Lecture {
+  id            Int     @id @default(autoincrement())
+  tutor_user_id Int
+  title         String
+  description   String? @db.Text
+  video_url     String
+
+  tutor TutorProfile @relation(fields: [tutor_user_id], references: [user_id], onDelete: Cascade)
+}
