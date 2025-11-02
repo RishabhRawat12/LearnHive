@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `tutorprofile` ADD COLUMN `status` ENUM('PENDING', 'APPROVED', 'REJECTED') NOT NULL DEFAULT 'PENDING';

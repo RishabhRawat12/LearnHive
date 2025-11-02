@@ -27,12 +27,18 @@ enum Role {
   tutor
 }
 
+enum TutorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model TutorProfile {
   user_id     Int     @id
   bio         String? @db.Text
   hourly_rate Decimal? @db.Decimal(10, 2)
   avatar_url  String?
-
+  status      TutorStatus @default(PENDING)
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   skills Skill[]
   availability Availability[]
