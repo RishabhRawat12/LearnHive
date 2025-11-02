@@ -2,8 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
 import { GraduationCap, ShieldCheck } from "lucide-react"; // Import new icon
 import { useAuth } from "@/context/AuthContext";
-import { Role } from "@prisma/client"; // Import Role enum
-
+import { Role } from "@/lib/roles";
 const Navbar = () => {
   const location = useLocation();
   // --- MODIFICATION: Get userRole ---

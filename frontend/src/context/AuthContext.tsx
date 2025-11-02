@@ -4,8 +4,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { Role } from "@prisma/client"; // Import Role enum
-
+import { Role } from "@/lib/roles";
 // --- ADD userRole TO CONTEXT ---
 interface AuthContextType {
   isAuthenticated: boolean;

@@ -1,7 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { Role } from "@prisma/client"; // Import Role enum
-
+import { Role } from "@/lib/roles";
 interface ProtectedRouteProps {
   role?: Role; // Add an optional role prop
 }
