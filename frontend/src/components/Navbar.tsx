@@ -1,15 +1,22 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
 import { GraduationCap } from "lucide-react";
+import { useAuth } from "@/context/AuthContext"; // --- IMPORT useAuth ---
 
-interface NavbarProps {
-  isAuthenticated?: boolean;
-  onLogout?: () => void;
-}
+// --- REMOVE PROPS Interface ---
+// interface NavbarProps {
+//   isAuthenticated?: boolean;
+//   onLogout?: () => void;
+// }
+// --- END REMOVE ---
 
-const Navbar = ({ isAuthenticated = false, onLogout }: NavbarProps) => {
+// --- UPDATE Component Definition ---
+// const Navbar = ({ isAuthenticated = false, onLogout }: NavbarProps) => {
+const Navbar = () => {
+  // --- END UPDATE ---
   const location = useLocation();
-  
+  const { isAuthenticated, logout } = useAuth(); // --- USE THE CONTEXT ---
+
   const isActive = (path: string) => location.pathname === path;
 
   return (
@@ -19,20 +26,20 @@ const Navbar = ({ isAuthenticated = false, onLogout }: NavbarProps) => {
           <GraduationCap className="h-8 w-8 text-primary" />
           <span className="text-2xl font-bold text-primary">LearnHive</span>
         </Link>
-        
+
         <div className="flex items-center gap-6">
-          <Link 
-            to="/find-tutors" 
+          <Link
+            to="/find-tutors"
             className={`text-sm font-medium transition-colors hover:text-primary ${
-              isActive('/find-tutors') ? 'text-primary' : 'text-foreground'
+              isActive("/find-tutors") ? "text-primary" : "text-foreground"
             }`}
           >
             Find Tutors
           </Link>
-          <Link 
-            to="/auth?mode=register&tutor=true" 
+          <Link
+            to="/auth?mode=register&tutor=true"
             className={`text-sm font-medium transition-colors hover:text-primary ${
-              isActive('/auth') ? 'text-primary' : 'text-foreground'
+              isActive("/auth") ? "text-primary" : "text-foreground"
             }`}
           >
             Become a Tutor
@@ -40,12 +47,14 @@ const Navbar = ({ isAuthenticated = false, onLogout }: NavbarProps) => {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* This 'isAuthenticated' variable now comes from the useAuth hook */}
           {isAuthenticated ? (
             <>
               <Link to="/dashboard">
                 <Button variant="ghost">Dashboard</Button>
               </Link>
-              <Button variant="outline" onClick={onLogout}>
+              {/* This 'logout' function now comes from the useAuth hook */}
+              <Button variant="outline" onClick={logout}>
                 Logout
               </Button>
             </>

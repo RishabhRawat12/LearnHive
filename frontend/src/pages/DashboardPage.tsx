@@ -10,18 +10,11 @@ import ManageAvailability from "@/components/ManageAvailability";
 import ManageLectures from "@/components/ManageLectures";
 import EditProfile from "@/components/EditProfile";
 import ReviewForm from "@/components/ReviewForm";
+import ReviewsList from "@/components/ReviewsList"; // --- IMPORT ReviewsList ---
 
-// --- NEW IMPORTS ---
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/context/AuthContext";
-import { useNavigate } from "react-router-dom";
-// --- END NEW IMPORTS ---
-
-// --- REMOVE MOCK DATA ---
-// const mockUser = { ... }
-// --- END REMOVE MOCK DATA ---
 
 // API fetch function
 const fetchDashboard = async () => {
@@ -29,24 +22,22 @@ const fetchDashboard = async () => {
   return data;
 };
 
-// Define Booking type based on API response
+// Define Booking type
 interface Booking {
   id: number;
   tutorName: string;
+  studentName: string;
   subject: string;
   date: string;
   time: string;
   status: "upcoming" | "completed" | "cancelled";
-  hasReview: boolean; // This property is provided by the dashboard API
+  hasReview: boolean;
 }
 
 const DashboardPage = () => {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
-  // --- NEW HOOKS ---
-  const { logout } = useAuth();
-  const navigate = useNavigate();
   const {
     data: user,
     isLoading,
@@ -55,19 +46,12 @@ const DashboardPage = () => {
     queryKey: ["dashboard"],
     queryFn: fetchDashboard,
   });
-  // --- END NEW HOOKS ---
-
-  const handleLogout = () => {
-    logout();
-    navigate("/"); // Redirect to home after logout
-  };
 
   const handleOpenReviewModal = (booking: Booking) => {
     setSelectedBooking(booking);
     setReviewModalOpen(true);
   };
 
-  // --- DERIVED STATE: Moved inside render ---
   const upcomingBookings: Booking[] =
     user?.bookings.filter((b: Booking) => b.status === "upcoming") || [];
   const pastBookings: Booking[] =
@@ -93,11 +77,10 @@ const DashboardPage = () => {
     }
   };
 
-  // --- LOADING STATE ---
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar isAuthenticated={true} onLogout={handleLogout} />
+        <Navbar />
         <main className="container mx-auto px-4 py-8">
           <Card className="mb-6 p-8">
             <div className="flex items-start gap-6">
@@ -125,11 +108,10 @@ const DashboardPage = () => {
     );
   }
 
-  // --- ERROR STATE ---
   if (isError || !user) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar isAuthenticated={true} onLogout={handleLogout} />
+        <Navbar />
         <main className="container mx-auto px-4 py-8 text-center">
           <Card className="p-12">
             <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
@@ -137,17 +119,16 @@ const DashboardPage = () => {
             <p className="text-muted-foreground mb-4">
               There was a problem fetching your data. Please try again.
             </p>
-            <Button onClick={handleLogout}>Logout and Try Again</Button>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
           </Card>
         </main>
       </div>
     );
   }
 
-  // --- SUCCESS STATE (user data is available) ---
   return (
     <div className="min-h-screen bg-background">
-      <Navbar isAuthenticated={true} onLogout={handleLogout} />
+      <Navbar />
 
       <main className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -197,6 +178,8 @@ const DashboardPage = () => {
                 <TabsTrigger value="availability">Availability</TabsTrigger>
                 <TabsTrigger value="lectures">Lectures</TabsTrigger>
                 <TabsTrigger value="profile">Edit Profile</TabsTrigger>
+                {/* --- ADDED THIS TAB --- */}
+                <TabsTrigger value="reviews">My Reviews</TabsTrigger>
               </>
             )}
           </TabsList>
@@ -243,7 +226,9 @@ const DashboardPage = () => {
                         <div className="flex-1">
                           <div className="mb-1 flex items-center gap-2">
                             <h3 className="font-semibold">
-                              {booking.tutorName}
+                              {user.isTutor
+                                ? `Student: ${booking.studentName}`
+                                : booking.tutorName}
                             </h3>
                             <Badge variant={getStatusColor(booking.status)}>
                               {booking.status}
@@ -292,7 +277,9 @@ const DashboardPage = () => {
                         <div className="flex-1">
                           <div className="mb-1 flex items-center gap-2">
                             <h3 className="font-semibold">
-                              {booking.tutorName}
+                              {user.isTutor
+                                ? `Student: ${booking.studentName}`
+                                : booking.tutorName}
                             </h3>
                             <Badge variant={getStatusColor(booking.status)}>
                               {booking.status}
@@ -318,10 +305,8 @@ const DashboardPage = () => {
                           <span className="text-muted-foreground">
                             {booking.time}
                           </span>
-                          
-                          {/* --- MODIFICATION HERE --- */}
-                          {/* Only show button if a review has NOT been submitted */}
-                          {!booking.hasReview && (
+
+                          {!user.isTutor && !booking.hasReview && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -330,8 +315,6 @@ const DashboardPage = () => {
                               Leave Review
                             </Button>
                           )}
-                          {/* --- END MODIFICATION --- */}
-                          
                         </div>
                       </div>
                     ))
@@ -353,6 +336,14 @@ const DashboardPage = () => {
 
               <TabsContent value="profile">
                 <EditProfile />
+              </TabsContent>
+              
+              {/* --- ADDED THIS TAB CONTENT --- */}
+              <TabsContent value="reviews">
+                <Card className="p-6">
+                  <h2 className="mb-6 text-2xl font-bold">Your Student Reviews</h2>
+                  <ReviewsList reviews={user.reviews} />
+                </Card>
               </TabsContent>
             </>
           )}

@@ -2,7 +2,7 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
+  useEffect, // <-- We no longer need this
   ReactNode,
 } from "react";
 
@@ -17,15 +17,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Create the provider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(null);
+  // --- MODIFICATION HERE ---
+  // Initialize state by lazy-loading the token from localStorage.
+  // This function only runs ONCE on the initial load.
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem("token");
+  });
+  // --- END MODIFICATION ---
 
-  // Check localStorage for token on initial load
-  useEffect(() => {
-    const storedToken = localStorage.getItem("token");
-    if (storedToken) {
-      setToken(storedToken);
-    }
-  }, []);
+  // --- REMOVE THE USELESS EFFECT ---
+  // We no longer need this, as the state is initialized correctly.
+  // useEffect(() => {
+  //   const storedToken = localStorage.getItem("token");
+  //   if (storedToken) {
+  //     setToken(storedToken);
+  //   }
+  // }, []);
+  // --- END REMOVE ---
 
   const login = (newToken: string) => {
     setToken(newToken);
