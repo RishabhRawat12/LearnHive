@@ -1,8 +1,8 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import prisma from "../db"; // Import our shared Prisma client
-import { Role } from "@prisma/client"; // Import the Role enum from Prisma
+import prisma from "../db";
+import { Role } from "@prisma/client";
 
 const authRoutes = Router();
 
@@ -12,6 +12,7 @@ const authRoutes = Router();
  */
 authRoutes.post("/register", async (req, res) => {
   try {
+    // We no longer need tutorCode
     const { name, email, password, isTutor } = req.body;
 
     // 1. Validation
@@ -28,32 +29,36 @@ authRoutes.post("/register", async (req, res) => {
     // 3. Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
-    // 4. Determine role
-    const role: Role = isTutor ? Role.tutor : Role.student;
+    // --- START OF NEW LOGIC ---
+    // 4. ALL users are created as 'student' by default.
+    //    The 'role' will be changed by an admin later.
+    const role: Role = Role.student;
+    // --- END OF NEW LOGIC ---
 
     // 5. Create user (and profile if tutor) in a transaction
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
-        data: { name, email, password_hash, role },
+        data: { name, email, password_hash, role }, // Role is now always 'student'
       });
 
-      // If tutor, create associated profile
+      // If they applied to be a tutor, create their PENDING profile
       if (isTutor) {
         await tx.tutorProfile.create({
           data: {
             user_id: newUser.id,
-            bio: "Welcome to my profile!", // Default bio
+            bio: "Welcome! Your application is pending approval.", // Default bio
+            status: 'PENDING', // Set status to PENDING
           },
         });
       }
       return newUser;
     });
 
-    // 6. Create a JWT
+    // 6. Create a JWT. Note: user.role is 'student' here, which is correct!
     const token = jwt.sign(
-      { userId: user.id, role: user.role }, // Token payload
-      process.env.JWT_SECRET as string, // Secret key
-      { expiresIn: "1d" } // Expires in 1 day
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "1d" }
     );
 
     // 7. Send token to frontend
@@ -72,20 +77,18 @@ authRoutes.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Validation
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    // 2. Find user
     const user = await prisma.user.findUnique({ where: { email } });
 
-    // 3. Check user and password
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // 4. Create and send JWT
+    // This now correctly sends the user's CURRENT role from the DB
+    // (which will be 'student' until you approve them)
     const token = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET as string,

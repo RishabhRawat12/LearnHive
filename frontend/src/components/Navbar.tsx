@@ -1,21 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
-import { GraduationCap } from "lucide-react";
-import { useAuth } from "@/context/AuthContext"; // --- IMPORT useAuth ---
+import { GraduationCap, ShieldCheck } from "lucide-react"; // Import new icon
+import { useAuth } from "@/context/AuthContext";
+import { Role } from "@prisma/client"; // Import Role enum
 
-// --- REMOVE PROPS Interface ---
-// interface NavbarProps {
-//   isAuthenticated?: boolean;
-//   onLogout?: () => void;
-// }
-// --- END REMOVE ---
-
-// --- UPDATE Component Definition ---
-// const Navbar = ({ isAuthenticated = false, onLogout }: NavbarProps) => {
 const Navbar = () => {
-  // --- END UPDATE ---
   const location = useLocation();
-  const { isAuthenticated, logout } = useAuth(); // --- USE THE CONTEXT ---
+  // --- MODIFICATION: Get userRole ---
+  const { isAuthenticated, logout, userRole } = useAuth();
+  // --- END MODIFICATION ---
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -31,7 +24,7 @@ const Navbar = () => {
           <Link
             to="/find-tutors"
             className={`text-sm font-medium transition-colors hover:text-primary ${
-              isActive("/find-tutors") ? "text-primary" : "text-foreground"
+              isActive('/find-tutors') ? 'text-primary' : 'text-foreground'
             }`}
           >
             Find Tutors
@@ -39,21 +32,33 @@ const Navbar = () => {
           <Link
             to="/auth?mode=register&tutor=true"
             className={`text-sm font-medium transition-colors hover:text-primary ${
-              isActive("/auth") ? "text-primary" : "text-foreground"
+              isActive('/auth') ? 'text-primary' : 'text-foreground'
             }`}
           >
             Become a Tutor
           </Link>
+
+          {/* --- NEW ADMIN LINK --- */}
+          {userRole === Role.ADMIN && (
+            <Link
+              to="/admin"
+              className={`flex items-center gap-1 text-sm font-semibold transition-colors hover:text-primary ${
+                isActive('/admin') ? 'text-primary' : 'text-destructive'
+              }`}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Admin
+            </Link>
+          )}
+          {/* --- END ADMIN LINK --- */}
         </div>
 
         <div className="flex items-center gap-3">
-          {/* This 'isAuthenticated' variable now comes from the useAuth hook */}
           {isAuthenticated ? (
             <>
               <Link to="/dashboard">
                 <Button variant="ghost">Dashboard</Button>
               </Link>
-              {/* This 'logout' function now comes from the useAuth hook */}
               <Button variant="outline" onClick={logout}>
                 Logout
               </Button>

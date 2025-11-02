@@ -3,17 +3,18 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Role } from "@prisma/client"; // Import Role
 
-// --- NEW IMPORTS ---
+// --- IMPORTS ---
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-// --- END NEW IMPORTS ---
 
 import Index from "./pages/Index";
 import FindTutorPage from "./pages/FindTutorPage";
 import TutorProfilePage from "./pages/TutorProfilePage";
 import DashboardPage from "./pages/DashboardPage";
 import AuthPage from "./pages/AuthPage";
+import AdminPage from "./pages/AdminPage"; // --- IMPORT NEW ADMIN PAGE ---
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,7 +24,6 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      {/* Wrap the app in the AuthProvider */}
       <AuthProvider>
         <BrowserRouter>
           <Routes>
@@ -33,9 +33,14 @@ const App = () => (
             <Route path="/tutor/:id" element={<TutorProfilePage />} />
             <Route path="/auth" element={<AuthPage />} />
 
-            {/* Protected Routes */}
+            {/* Protected Routes (Logged in users) */}
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+            </Route>
+
+            {/* --- NEW ADMIN-ONLY ROUTE --- */}
+            <Route element={<ProtectedRoute role={Role.ADMIN} />}>
+              <Route path="/admin" element={<AdminPage />} />
             </Route>
 
             {/* Catch-all */}

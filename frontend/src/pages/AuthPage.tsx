@@ -8,21 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { GraduationCap, AlertCircle } from "lucide-react";
-import { toast } from "sonner"; // Use sonner toast
+import { GraduationCap, AlertCircle } from "lucide-react"; // Removed KeyRound
+import { toast } from "sonner";
 
-// --- NEW IMPORTS ---
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
-// --- END NEW IMPORTS ---
 
-// Schemas remain the same
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
-// ... signupSchema ...
+
+// --- UPDATE SIGNUP SCHEMA (Simpler) ---
 const signupSchema = z
   .object({
     name: z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -34,30 +32,31 @@ const signupSchema = z
       .regex(/[0-9]/, "Password must contain at least one number"),
     confirmPassword: z.string(),
     isTutor: z.boolean(),
+    // tutorCode is no longer needed
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"],
   });
+// --- END SCHEMA UPDATE ---
 
 type LoginFormData = z.infer<typeof loginSchema>;
 type SignupFormData = z.infer<typeof signupSchema>;
 
-// API call functions
 const loginUser = async (data: LoginFormData) => {
   const response = await api.post("/auth/login", data);
-  return response.data; // { token: "..." }
+  return response.data;
 };
 
 const signupUser = async (data: SignupFormData) => {
   const response = await api.post("/auth/register", data);
-  return response.data; // { token: "..." }
+  return response.data;
 };
 
 const AuthPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login } = useAuth(); // Get login function from context
+  const { login } = useAuth();
 
   const mode = searchParams.get("mode") || "login";
   const isTutorSignup = searchParams.get("tutor") === "true";
@@ -65,7 +64,6 @@ const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(mode === "login");
   const [isTutor, setIsTutor] = useState(isTutorSignup);
 
-  // Forms remain the same
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
@@ -78,14 +76,14 @@ const AuthPage = () => {
       password: "",
       confirmPassword: "",
       isTutor: isTutorSignup,
+      // tutorCode removed
     },
   });
 
-  // --- NEW API MUTATIONS ---
   const loginMutation = useMutation({
     mutationFn: loginUser,
     onSuccess: (data) => {
-      login(data.token); // Save token to context/localStorage
+      login(data.token);
       toast.success("Welcome back!");
       navigate("/dashboard");
     },
@@ -98,17 +96,19 @@ const AuthPage = () => {
     mutationFn: signupUser,
     onSuccess: (data, variables) => {
       login(data.token);
-      const accountType = variables.isTutor ? "tutor" : "student";
-      toast.success(`Account created successfully as a ${accountType}!`);
+      // Change success message
+      if (variables.isTutor) {
+        toast.success("Account created! Your tutor application is pending approval.");
+      } else {
+        toast.success("Account created successfully!");
+      }
       navigate("/dashboard");
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Signup failed");
     },
   });
-  // --- END NEW API MUTATIONS ---
 
-  // Update submit handlers
   const onLoginSubmit = (data: LoginFormData) => {
     loginMutation.mutate(data);
   };
@@ -116,14 +116,14 @@ const AuthPage = () => {
   const onSignupSubmit = (data: SignupFormData) => {
     signupMutation.mutate(data);
   };
-  
+
   const toggleMode = () => {
     setIsLogin(!isLogin);
     loginForm.reset();
-    signupForm.reset();
+    signupForm.reset({ isTutor: isTutorSignup }); // Reset form
+    setIsTutor(isTutorSignup);
   };
-  
-  // Get loading states
+
   const isLoggingIn = loginMutation.isPending;
   const isSigningUp = signupMutation.isPending;
 
@@ -149,7 +149,7 @@ const AuthPage = () => {
             onSubmit={loginForm.handleSubmit(onLoginSubmit)}
             className="space-y-4"
           >
-            {/* Email Field */}
+            {/* (Login form is unchanged) */}
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
@@ -166,7 +166,6 @@ const AuthPage = () => {
                 </p>
               )}
             </div>
-            {/* Password Field */}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -183,7 +182,6 @@ const AuthPage = () => {
                 </p>
               )}
             </div>
-            {/* Submit Button */}
             <Button type="submit" className="w-full" disabled={isLoggingIn}>
               {isLoggingIn ? "Signing In..." : "Sign In"}
             </Button>
@@ -193,7 +191,7 @@ const AuthPage = () => {
             onSubmit={signupForm.handleSubmit(onSignupSubmit)}
             className="space-y-4"
           >
-            {/* Name Field */}
+            {/* (Name, Email, Password fields are unchanged) */}
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input
@@ -209,7 +207,6 @@ const AuthPage = () => {
                 </p>
               )}
             </div>
-            {/* Email Field */}
             <div className="space-y-2">
               <Label htmlFor="signup-email">Email Address</Label>
               <Input
@@ -226,7 +223,6 @@ const AuthPage = () => {
                 </p>
               )}
             </div>
-            {/* Password Fields */}
             <div className="space-y-2">
               <Label htmlFor="signup-password">Password</Label>
               <Input
@@ -255,11 +251,12 @@ const AuthPage = () => {
               {signupForm.formState.errors.confirmPassword && (
                 <p className="text-sm text-destructive flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
-                  {signupForm.formState.errors.confirmPassword.message}
+                  {signupForm.formSthte.errors.confirmPassword.message}
                 </p>
               )}
             </div>
-            {/* Tutor Checkbox */}
+
+            {/* --- MODIFIED CHECKBOX --- */}
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="isTutor"
@@ -271,10 +268,13 @@ const AuthPage = () => {
                 disabled={isSigningUp}
               />
               <Label htmlFor="isTutor" className="cursor-pointer font-normal">
-                I want to be a Tutor
+                I want to apply as a Tutor
               </Label>
             </div>
-            {/* Submit Button */}
+            {/* --- END MODIFIED CHECKBOX --- */}
+            
+            {/* Tutor code field is now removed */}
+
             <Button type="submit" className="w-full" disabled={isSigningUp}>
               {isSigningUp ? "Creating Account..." : "Create Account"}
             </Button>
