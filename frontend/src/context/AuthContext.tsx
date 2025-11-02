@@ -5,18 +5,17 @@ import {
   ReactNode,
 } from "react";
 import { Role } from "@/lib/roles";
-// --- ADD userRole TO CONTEXT ---
+
 interface AuthContextType {
   isAuthenticated: boolean;
-  userRole: Role | null; // Add user's role
+  userRole: Role | null;
+  userId: number | null; // Add user's ID
   login: (token: string) => void;
   logout: () => void;
 }
-// --- END ADD ---
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper function to parse the JWT
 function parseJwt(token: string) {
   try {
     return JSON.parse(atob(token.split('.')[1]));
@@ -30,7 +29,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return localStorage.getItem("token");
   });
 
-  // --- NEW: Store userRole in state ---
   const [userRole, setUserRole] = useState<Role | null>(() => {
     const storedToken = localStorage.getItem("token");
     if (storedToken) {
@@ -39,26 +37,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     return null;
   });
-  // --- END NEW ---
+
+  // Store userId from token
+  const [userId, setUserId] = useState<number | null>(() => {
+    const storedToken = localStorage.getItem("token");
+    if (storedToken) {
+      const payload = parseJwt(storedToken);
+      return payload?.userId || null;
+    }
+    return null;
+  });
 
   const login = (newToken: string) => {
-    const payload = parseJwt(newToken); // Parse the new token
+    const payload = parseJwt(newToken);
     setToken(newToken);
-    setUserRole(payload?.role || null); // Set the role from the payload
+    setUserRole(payload?.role || null);
+    setUserId(payload?.userId || null); // Set the userId
     localStorage.setItem("token", newToken);
   };
 
   const logout = () => {
     setToken(null);
-    setUserRole(null); // Clear the role
+    setUserRole(null);
+    setUserId(null); // Clear the userId
     localStorage.removeItem("token");
   };
 
   const isAuthenticated = !!token;
 
   return (
-    // --- ADD userRole to provider value ---
-    <AuthContext.Provider value={{ isAuthenticated, userRole, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, userRole, userId, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
