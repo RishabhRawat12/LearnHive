@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input"; // Input is already imported
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge"; // --- THIS LINE WAS MISSING ---
+import { Badge } from "@/components/ui/badge";
 import { X, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -34,16 +34,13 @@ const fetchTutorProfile = async () => {
   return data;
 };
 
-// Fetch all unique skill names for the dropdown
-const fetchAllSkills = async () => {
-  const { data } = await api.get("/skills");
-  return data;
-};
+// --- REMOVE fetchAllSkills, it's no longer needed ---
+// const fetchAllSkills = async () => { ... };
 
 const updateTutorProfile = async (profileData: {
   bio: string;
   hourly_rate: string;
-  avatar_url: string; // Added avatar
+  avatar_url: string;
   skills: Skill[];
 }) => {
   const { data } = await api.put("/profile", profileData);
@@ -70,10 +67,8 @@ const EditProfile = () => {
     queryFn: fetchTutorProfile,
   });
 
-  const { data: allSkills, isLoading: isLoadingSkills } = useQuery<string[]>({
-    queryKey: ["allSkills"],
-    queryFn: fetchAllSkills,
-  });
+  // --- REMOVE useQuery for allSkills ---
+  // const { data: allSkills, isLoading: isLoadingSkills } = useQuery<string[]>({ ... });
 
   // Populate form when data loads
   useEffect(() => {
@@ -81,7 +76,6 @@ const EditProfile = () => {
       setBio(profile.bio || "");
       setMainHourlyRate(profile.hourly_rate?.toString() || "0");
       setAvatarUrl(profile.avatar_url || "");
-      // Convert decimal rates from DB to strings for the form
       setSkills(
         profile.skills.map((s: any) => ({
           ...s,
@@ -97,7 +91,7 @@ const EditProfile = () => {
     onSuccess: () => {
       toast.success("Profile updated successfully!");
       queryClient.invalidateQueries({ queryKey: ["tutorProfile"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] }); // Also update dashboard
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Failed to update profile");
@@ -111,14 +105,15 @@ const EditProfile = () => {
       toast.error("Please fill all skill fields (Name, Level, and Rate)");
       return;
     }
-    if (skills.find((s) => s.name === newSkillName)) {
+    // Check against trimmed, case-insensitive name
+    if (skills.find((s) => s.name.toLowerCase() === newSkillName.trim().toLowerCase())) {
       toast.error("Skill already added");
       return;
     }
     setSkills([
       ...skills,
       {
-        name: newSkillName,
+        name: newSkillName.trim(), // Trim whitespace
         experienceLevel: newSkillLevel,
         hourlyRate: newSkillRate,
       },
@@ -143,7 +138,8 @@ const EditProfile = () => {
     });
   };
 
-  const isLoading = isLoadingProfile || isLoadingSkills;
+  // --- REMOVE isLoadingSkills ---
+  const isLoading = isLoadingProfile; // Only check profile loading
 
   if (isLoading) {
     return (
@@ -249,25 +245,20 @@ const EditProfile = () => {
           >
             <h4 className="font-semibold mb-3">Add New Skill</h4>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              
+              {/* --- THIS IS THE MODIFIED BLOCK --- */}
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="newSkillName">Skill Name</Label>
-                <Select
+                <Input
+                  id="newSkillName"
+                  type="text"
                   value={newSkillName}
-                  onValueChange={setNewSkillName}
+                  onChange={(e) => setNewSkillName(e.target.value)}
+                  placeholder="e.g., JavaScript"
                   disabled={mutation.isPending}
-                >
-                  <SelectTrigger id="newSkillName">
-                    <SelectValue placeholder="Select a skill" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allSkills?.map((skill) => (
-                      <SelectItem key={skill} value={skill}>
-                        {skill}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
+              {/* --- END MODIFIED BLOCK --- */}
 
               <div className="space-y-2">
                 <Label htmlFor="newSkillLevel">Experience</Label>

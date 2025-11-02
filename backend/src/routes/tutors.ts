@@ -19,17 +19,22 @@ tutorRoutes.get("/", async (req, res) => {
       },
     };
 
-    // 2. Add search filter (name or bio)
+    // 2. Add search filter (name, bio, OR skills)
     if (typeof search === "string" && search.trim() !== "") {
       where.OR = [
         { user: { name: { contains: search } } },
         { bio: { contains: search } },
+        // --- THIS IS THE FIX ---
+        // Also search if any of their skills contain the search term
+        { skills: { some: { name: { contains: search } } } },
+        // --- END OF FIX ---
       ];
     }
 
-    // 3. Add skills filter
+    // 3. Add skills filter (from the badges)
     if (typeof skills === "string" && skills.trim() !== "") {
       const skillList = skills.split(",");
+      // This part is an AND condition with the text search
       where.skills = {
         some: {
           name: {
@@ -110,6 +115,9 @@ tutorRoutes.get("/:id", async (req, res) => {
               select: { name: true },
             },
           },
+          orderBy: {
+            created_at: 'desc', // Show newest reviews first
+          }
         },
         lectures: true,
         availability: {
@@ -119,6 +127,9 @@ tutorRoutes.get("/:id", async (req, res) => {
               gte: new Date(), // Only get future slots
             },
           },
+          orderBy: {
+            start_time: 'asc', // Show soonest slots first
+          }
         },
       },
     });
