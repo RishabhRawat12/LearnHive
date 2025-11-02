@@ -8,19 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { GraduationCap, AlertCircle } from "lucide-react";
+import { GraduationCap, AlertCircle, Briefcase, Link as LinkIcon, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea"; // --- IMPORT TEXTAREA ---
 
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
-import { Role } from "@/lib/roles"; // We need this import
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+// --- UPDATE SIGNUP SCHEMA ---
 const signupSchema = z
   .object({
     name: z.string().min(2, "Name must be at least 2 characters").max(100),
@@ -32,11 +33,36 @@ const signupSchema = z
       .regex(/[0-9]/, "Password must contain at least one number"),
     confirmPassword: z.string(),
     isTutor: z.boolean(),
+    // --- ADD NEW FIELDS ---
+    application_message: z.string().optional(),
+    subjects_applying_for: z.string().optional(),
+    credentials_url: z.string().url("Must be a valid URL (e.g., https://...)").optional().or(z.literal('')),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"],
+  })
+  // --- ADD VALIDATION FOR TUTOR FIELDS ---
+  .refine((data) => {
+    if (data.isTutor && (!data.application_message || data.application_message.length < 20)) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "Application message must be at least 20 characters",
+    path: ["application_message"],
+  })
+  .refine((data) => {
+    if (data.isTutor && (!data.subjects_applying_for || data.subjects_applying_for.trim() === "")) {
+      return false;
+    }
+    return true;
+  }, {
+    message: "Please list the subjects you want to teach",
+    path: ["subjects_applying_for"],
   });
+// --- END SCHEMA UPDATE ---
+
 
 type LoginFormData = z.infer<typeof loginSchema>;
 type SignupFormData = z.infer<typeof signupSchema>;
@@ -74,8 +100,15 @@ const AuthPage = () => {
       password: "",
       confirmPassword: "",
       isTutor: isTutorSignup,
+      // --- ADD DEFAULTS ---
+      application_message: "",
+      subjects_applying_for: "",
+      credentials_url: "",
     },
   });
+
+  // Watch the isTutor value to conditionally render fields
+  const watchIsTutor = signupForm.watch("isTutor");
 
   const loginMutation = useMutation({
     mutationFn: loginUser,
@@ -116,7 +149,11 @@ const AuthPage = () => {
   const toggleMode = () => {
     setIsLogin(!isLogin);
     loginForm.reset();
-    signupForm.reset({ isTutor: isTutorSignup });
+    signupForm.reset({
+      isTutor: isTutorSignup,
+      name: "", email: "", password: "", confirmPassword: "",
+      application_message: "", subjects_applying_for: "", credentials_url: ""
+    });
     setIsTutor(isTutorSignup);
   };
 
@@ -145,6 +182,7 @@ const AuthPage = () => {
             onSubmit={loginForm.handleSubmit(onLoginSubmit)}
             className="space-y-4"
           >
+            {/* (Login form is unchanged) */}
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
@@ -186,6 +224,7 @@ const AuthPage = () => {
             onSubmit={signupForm.handleSubmit(onSignupSubmit)}
             className="space-y-4"
           >
+            {/* (Name, Email, Password fields are unchanged) */}
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input
@@ -245,15 +284,16 @@ const AuthPage = () => {
               {signupForm.formState.errors.confirmPassword && (
                 <p className="text-sm text-destructive flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
-                  {/* --- THIS IS THE TYPO FIX --- */}
                   {signupForm.formState.errors.confirmPassword.message}
                 </p>
               )}
             </div>
 
+            {/* --- MODIFIED CHECKBOX --- */}
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="isTutor"
+                {...signupForm.register("isTutor")}
                 checked={isTutor}
                 onCheckedChange={(checked) => {
                   setIsTutor(checked as boolean);
@@ -265,9 +305,61 @@ const AuthPage = () => {
                 I want to apply as a Tutor
               </Label>
             </div>
+            
+            {/* --- NEW CONDITIONAL FIELDS --- */}
+            {watchIsTutor && (
+              <div className="space-y-4 rounded-md border bg-muted/50 p-4">
+                <div className="space-y-2">
+                  <Label htmlFor="application_message">Why do you want to be a tutor?</Label>
+                  <Textarea
+                    id="application_message"
+                    placeholder="Tell us about your teaching experience and qualifications..."
+                    {...signupForm.register("application_message")}
+                    disabled={isSigningUp}
+                  />
+                  {signupForm.formState.errors.application_message && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {signupForm.formState.errors.application_message.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subjects_applying_for">Subjects you want to teach</Label>
+                  <Input
+                    id="subjects_applying_for"
+                    placeholder="e.g., Math, Physics, JavaScript"
+                    {...signupForm.register("subjects_applying_for")}
+                    disabled={isSigningUp}
+                  />
+                  {signupForm.formState.errors.subjects_applying_for && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {signupForm.formState.errors.subjects_applying_for.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="credentials_url">LinkedIn or Portfolio URL (Optional)</Label>
+                  <Input
+                    id="credentials_url"
+                    placeholder="https://linkedin.com/in/yourprofile"
+                    {...signupForm.register("credentials_url")}
+                    disabled={isSigningUp}
+                  />
+                  {signupForm.formState.errors.credentials_url && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {signupForm.formState.errors.credentials_url.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+            {/* --- END NEW FIELDS --- */}
 
             <Button type="submit" className="w-full" disabled={isSigningUp}>
-              {isSigningUp ? "Creating Account..." : "Create Account"}
+              {isSigningUp ? "Submitting..." : (watchIsTutor ? "Submit Application" : "Create Account")}
             </Button>
           </form>
         )}

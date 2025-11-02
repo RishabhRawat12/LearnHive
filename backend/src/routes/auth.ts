@@ -12,56 +12,66 @@ const authRoutes = Router();
  */
 authRoutes.post("/register", async (req, res) => {
   try {
-    // We no longer need tutorCode
-    const { name, email, password, isTutor } = req.body;
+    // --- 1. Get new fields from body ---
+    const { 
+      name, 
+      email, 
+      password, 
+      isTutor, 
+      application_message, 
+      subjects_applying_for, 
+      credentials_url 
+    } = req.body;
 
-    // 1. Validation
+    // 2. Validation
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 2. Check if user exists
+    // 3. Check if user exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(409).json({ message: "Email already in use" });
     }
 
-    // 3. Hash password
+    // 4. Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
-    // --- START OF NEW LOGIC ---
-    // 4. ALL users are created as 'student' by default.
-    //    The 'role' will be changed by an admin later.
+    // 5. ALL users are created as 'student' by default.
     const role: Role = Role.student;
-    // --- END OF NEW LOGIC ---
 
-    // 5. Create user (and profile if tutor) in a transaction
+    // 6. Create user (and profile if tutor) in a transaction
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
-        data: { name, email, password_hash, role }, // Role is now always 'student'
+        data: { name, email, password_hash, role },
       });
 
       // If they applied to be a tutor, create their PENDING profile
       if (isTutor) {
+        // --- 7. Save the new application data ---
         await tx.tutorProfile.create({
           data: {
             user_id: newUser.id,
-            bio: "Welcome! Your application is pending approval.", // Default bio
-            status: 'PENDING', // Set status to PENDING
+            status: 'PENDING',
+            bio: "Your application is pending approval.", // Default public bio
+            application_message: application_message,
+            subjects_applying_for: subjects_applying_for,
+            credentials_url: credentials_url,
           },
         });
+        // --- END SAVE ---
       }
       return newUser;
     });
 
-    // 6. Create a JWT. Note: user.role is 'student' here, which is correct!
+    // 8. Create a JWT
     const token = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET as string,
       { expiresIn: "1d" }
     );
 
-    // 7. Send token to frontend
+    // 9. Send token to frontend
     res.status(201).json({ token });
   } catch (error) {
     console.error(error);
@@ -86,9 +96,7 @@ authRoutes.post("/login", async (req, res) => {
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
-
-    // This now correctly sends the user's CURRENT role from the DB
-    // (which will be 'student' until you approve them)
+    
     const token = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET as string,

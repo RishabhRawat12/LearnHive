@@ -5,12 +5,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Star, User, Mail, AlertCircle } from "lucide-react";
+import { Calendar, Star, User, Mail, AlertCircle, Info, XCircle } from "lucide-react"; // --- IMPORT ICONS ---
 import ManageAvailability from "@/components/ManageAvailability";
 import ManageLectures from "@/components/ManageLectures";
 import EditProfile from "@/components/EditProfile";
 import ReviewForm from "@/components/ReviewForm";
-import ReviewsList from "@/components/ReviewsList"; // --- IMPORT ReviewsList ---
+import ReviewsList from "@/components/ReviewsList";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // --- IMPORT ALERT ---
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
@@ -22,7 +23,7 @@ const fetchDashboard = async () => {
   return data;
 };
 
-// Define Booking type
+// ... (Interface Booking is unchanged) ...
 interface Booking {
   id: number;
   tutorName: string;
@@ -59,11 +60,7 @@ const DashboardPage = () => {
 
   const getInitials = (name: string) => {
     if (!name) return "";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase();
   };
 
   const getStatusColor = (status: string) => {
@@ -78,6 +75,7 @@ const DashboardPage = () => {
   };
 
   if (isLoading) {
+    // ... (Loading skeleton is unchanged) ...
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -109,6 +107,7 @@ const DashboardPage = () => {
   }
 
   if (isError || !user) {
+    // ... (Error state is unchanged) ...
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -126,13 +125,54 @@ const DashboardPage = () => {
     );
   }
 
+  // --- NEW: Helper component for application status ---
+  const ApplicationStatusAlert = () => {
+    if (!user.application_status) {
+      return null;
+    }
+
+    if (user.application_status === 'PENDING') {
+      return (
+        <Alert className="mb-6">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Application Pending</AlertTitle>
+          <AlertDescription>
+            Your tutor application is currently under review. We will notify you once a decision has been made.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    
+    if (user.application_status === 'REJECTED') {
+      return (
+        <Alert variant="destructive" className="mb-6">
+          <XCircle className="h-4 w-4" />
+          <AlertTitle>Application Not Approved</AlertTitle>
+          <AlertDescription>
+            <p className="font-semibold">A message from our admin team:</p>
+            <p className="italic">"{user.rejection_message}"</p>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    return null;
+  };
+  // --- END NEW COMPONENT ---
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
       <main className="container mx-auto px-4 py-8">
+        
+        {/* --- ADD THE ALERT HERE --- */}
+        {!user.isTutor && <ApplicationStatusAlert />}
+        {/* --- END ADD --- */}
+
         {/* Header */}
         <Card className="mb-6 p-8">
+        {/* ... (Header is unchanged) ... */}
           <div className="flex items-start gap-6">
             <Avatar className="h-24 w-24">
               <AvatarImage src={user.avatar} alt={user.name} />
@@ -140,11 +180,9 @@ const DashboardPage = () => {
                 {getInitials(user.name)}
               </AvatarFallback>
             </Avatar>
-
             <div className="flex-1">
               <h1 className="mb-2 text-3xl font-bold">{user.name}</h1>
               <p className="mb-4 text-muted-foreground">{user.email}</p>
-
               <div className="flex gap-6">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">
@@ -178,12 +216,12 @@ const DashboardPage = () => {
                 <TabsTrigger value="availability">Availability</TabsTrigger>
                 <TabsTrigger value="lectures">Lectures</TabsTrigger>
                 <TabsTrigger value="profile">Edit Profile</TabsTrigger>
-                {/* --- ADDED THIS TAB --- */}
                 <TabsTrigger value="reviews">My Reviews</TabsTrigger>
               </>
             )}
           </TabsList>
 
+          {/* ... (Rest of the TabsContent is unchanged) ... */}
           <TabsContent value="info">
             <Card className="p-6">
               <h2 className="mb-6 text-2xl font-bold">Personal Information</h2>
@@ -306,7 +344,7 @@ const DashboardPage = () => {
                             {booking.time}
                           </span>
 
-                          {!user.isTutor && !booking.hasReview && (
+                          {!user.isTor && !booking.hasReview && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -338,7 +376,6 @@ const DashboardPage = () => {
                 <EditProfile />
               </TabsContent>
               
-              {/* --- ADDED THIS TAB CONTENT --- */}
               <TabsContent value="reviews">
                 <Card className="p-6">
                   <h2 className="mb-6 text-2xl font-bold">Your Student Reviews</h2>

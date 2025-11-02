@@ -6,8 +6,7 @@ const router = Router();
 
 /**
  * GET /api/admin/pending-tutors
- * Gets all tutor profiles that are pending approval.
- * Protected by 'protect' and 'checkRole("ADMIN")' middleware.
+ * ... (This route is unchanged) ...
  */
 router.get("/pending-tutors", async (req, res) => {
   try {
@@ -40,14 +39,12 @@ router.get("/pending-tutors", async (req, res) => {
 
 /**
  * POST /api/admin/approve-tutor/:userId
- * Approves a tutor application.
- * Protected by 'protect' and 'checkRole("ADMIN")' middleware.
+ * ... (This route is unchanged) ...
  */
 router.post("/approve-tutor/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    // Use a transaction to ensure both updates succeed
     await prisma.$transaction(async (tx) => {
       // 1. Update the User's role from 'student' to 'tutor'
       await tx.user.update({
@@ -61,6 +58,8 @@ router.post("/approve-tutor/:userId", async (req, res) => {
         data: {
           status: TutorStatus.APPROVED,
           bio: "Your tutor application has been approved! Welcome to LearnHive.",
+          // Clear any old rejection message just in case
+          rejection_message: null, 
         },
       });
     });
@@ -71,5 +70,38 @@ router.post("/approve-tutor/:userId", async (req, res) => {
     res.status(500).json({ message: "Error approving tutor" });
   }
 });
+
+// --- START: NEW REJECT ROUTE ---
+/**
+ * POST /api/admin/reject-tutor/:userId
+ * Rejects a tutor application and provides a reason.
+ * Protected by 'protect' and 'checkRole("ADMIN")' middleware.
+ */
+router.post("/reject-tutor/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const { rejection_message } = req.body; // Get message from request body
+
+  if (!rejection_message || rejection_message.trim() === "") {
+    return res.status(400).json({ message: "A rejection message is required." });
+  }
+
+  try {
+    // Only need to update the TutorProfile
+    await prisma.tutorProfile.update({
+      where: { user_id: parseInt(userId) },
+      data: {
+        status: TutorStatus.REJECTED,
+        rejection_message: rejection_message,
+      },
+    });
+    
+    // Note: The user's role remains 'student'
+    res.status(200).json({ message: "Tutor rejected successfully" });
+  } catch (error) {
+    console.error("Error rejecting tutor:", error);
+    res.status(500).json({ message: "Error rejecting tutor" });
+  }
+});
+// --- END: NEW REJECT ROUTE ---
 
 export default router;

@@ -40,6 +40,10 @@ model TutorProfile {
   hourly_rate Decimal? @db.Decimal(10, 2)
   avatar_url  String?
   status      TutorStatus @default(PENDING)
+  application_message String? @db.Text
+  subjects_applying_for String? 
+  credentials_url       String?
+  rejection_message     String? @db.Text
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   skills Skill[]
   availability Availability[]
