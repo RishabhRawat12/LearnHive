@@ -3,6 +3,22 @@ import prisma from "../db";
 
 const router = Router();
 
+// Helper function to generate a random Google Meet link
+const generateMeetLink = () => {
+  const chars = "abcdefghijklmnopqrstuvwxyz";
+  const randomString = (length: number) =>
+    Array.from(
+      { length },
+      () => chars[Math.floor(Math.random() * chars.length)]
+    ).join("");
+  
+  const part1 = randomString(3);
+  const part2 = randomString(4);
+  const part3 = randomString(3);
+  
+  return `https://meet.google.com/${part1}-${part2}-${part3}`;
+};
+
 /**
  * POST /api/bookings
  * Creates a new booking for an available slot.
@@ -18,6 +34,9 @@ router.post("/", async (req, res) => {
   }
 
   try {
+    // Generate the unique meeting URL
+    const newMeetingUrl = generateMeetLink();
+
     // Use a transaction to ensure atomicity
     const newBooking = await prisma.$transaction(async (tx) => {
       // 1. Find the availability slot and lock it
@@ -45,7 +64,8 @@ router.post("/", async (req, res) => {
         data: {
           student_user_id: userId,
           availability_id: availability_id,
-          status: "upcoming", // Default status
+          status: "upcoming",
+          meetingUrl: newMeetingUrl, // Save the new meeting link
         },
       });
 

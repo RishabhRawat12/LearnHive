@@ -1,3 +1,4 @@
+// rishabhrawat12/learnhive/LearnHive-7537ae6c8f879fa606a7578eca3423fa2a6e5132/frontend/src/pages/DashboardPage.tsx
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
@@ -5,17 +6,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Star, User, Mail, AlertCircle, Info, XCircle } from "lucide-react"; // --- IMPORT ICONS ---
+import { Calendar, Star, User, Mail, AlertCircle, Info, XCircle, Video, Clock, ShieldCheck, Users, BarChart3, BookOpenCheck } from "lucide-react"; // Import new icons
 import ManageAvailability from "@/components/ManageAvailability";
 import ManageLectures from "@/components/ManageLectures";
 import EditProfile from "@/components/EditProfile";
 import ReviewForm from "@/components/ReviewForm";
 import ReviewsList from "@/components/ReviewsList";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // --- IMPORT ALERT ---
-
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; 
+import { useAuth } from "@/context/AuthContext"; // Import useAuth
+import { Role } from "@/lib/roles"; // Import Role
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "react-router-dom";
 
 // API fetch function
 const fetchDashboard = async () => {
@@ -23,7 +26,7 @@ const fetchDashboard = async () => {
   return data;
 };
 
-// ... (Interface Booking is unchanged) ...
+// Interface for Booking
 interface Booking {
   id: number;
   tutorName: string;
@@ -31,13 +34,15 @@ interface Booking {
   subject: string;
   date: string;
   time: string;
-  status: "upcoming" | "completed" | "cancelled";
+  status: "upcoming" | "completed" | "cancelled" | "ongoing"; // Add 'ongoing'
   hasReview: boolean;
+  meetingUrl: string | null;
 }
 
 const DashboardPage = () => {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const { userRole } = useAuth(); // Get the user's role
 
   const {
     data: user,
@@ -53,29 +58,35 @@ const DashboardPage = () => {
     setReviewModalOpen(true);
   };
 
+  // Filter bookings based on status
   const upcomingBookings: Booking[] =
-    user?.bookings.filter((b: Booking) => b.status === "upcoming") || [];
+    user?.bookings.filter((b: Booking) => b.status === "upcoming" || b.status === "ongoing") || [];
   const pastBookings: Booking[] =
-    user?.bookings.filter((b: Booking) => b.status === "completed") || [];
+    user?.bookings.filter((b: Booking) => b.status === "completed" || b.status === "cancelled") || [];
 
   const getInitials = (name: string) => {
     if (!name) return "";
     return name.split(" ").map((n) => n[0]).join("").toUpperCase();
   };
 
-  const getStatusColor = (status: string) => {
+  // Updated getStatusColor to handle all statuses
+  const getStatusColor = (status: string): "default" | "secondary" | "destructive" | "outline" | null | undefined => {
     switch (status) {
+      case "ongoing":
+        return "destructive"; // Red "LIVE" style
       case "completed":
-        return "default";
+        return "default"; // Black
       case "upcoming":
-        return "secondary";
+        return "secondary"; // Gray
+      case "cancelled":
+        return "outline"; // Lighter
       default:
         return "default";
     }
   };
 
   if (isLoading) {
-    // ... (Loading skeleton is unchanged) ...
+    // Skeleton UI
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -107,7 +118,7 @@ const DashboardPage = () => {
   }
 
   if (isError || !user) {
-    // ... (Error state is unchanged) ...
+    // Error UI
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -125,9 +136,9 @@ const DashboardPage = () => {
     );
   }
 
-  // --- NEW: Helper component for application status ---
+  // Application Status Alert Component
   const ApplicationStatusAlert = () => {
-    if (!user.application_status) {
+    if (userRole !== Role.student || !user.application_status) {
       return null;
     }
 
@@ -158,73 +169,95 @@ const DashboardPage = () => {
 
     return null;
   };
-  // --- END NEW COMPONENT ---
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
+  // --- RENDER HEADER STATS BASED ON ROLE ---
+  const renderHeaderStats = () => {
+    if (userRole === Role.ADMIN) {
+      // ADMIN STATS
+      return (
+        <div className="flex gap-6">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-primary">
+              {user.totalUsers}
+            </div>
+            <div className="text-sm text-muted-foreground">Total Users</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-primary">
+              {user.totalTutors}
+            </div>
+            <div className="text-sm text-muted-foreground">Total Tutors</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-primary">
+              {user.pendingApps}
+            </div>
+            <div className="text-sm text-muted-foreground">Pending Apps</div>
+          </div>
+        </div>
+      );
+    }
 
-      <main className="container mx-auto px-4 py-8">
-        
-        {/* --- ADD THE ALERT HERE --- */}
-        {!user.isTutor && <ApplicationStatusAlert />}
-        {/* --- END ADD --- */}
-
-        {/* Header */}
-        <Card className="mb-6 p-8">
-        {/* ... (Header is unchanged) ... */}
-          <div className="flex items-start gap-6">
-            <Avatar className="h-24 w-24">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback className="bg-accent text-2xl font-semibold text-primary">
-                {getInitials(user.name)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <h1 className="mb-2 text-3xl font-bold">{user.name}</h1>
-              <p className="mb-4 text-muted-foreground">{user.email}</p>
-              <div className="flex gap-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {user.totalSessions}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Total Sessions
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="flex items-center gap-1 text-2xl font-bold">
-                    <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                    {user.averageRating}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Average Rating
-                  </div>
-                </div>
-              </div>
+    if (user.isTutor) {
+      // TUTOR STATS
+      return (
+        <div className="flex gap-6">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-primary">
+              {user.totalSessions}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Total Sessions
             </div>
           </div>
-        </Card>
+          <div className="text-center">
+            <div className="flex items-center gap-1 text-2xl font-bold">
+              <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+              {user.averageRating}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Average Rating
+            </div>
+          </div>
+        </div>
+      );
+    }
 
-        {/* Content Tabs */}
+    // STUDENT STATS (default)
+    return (
+      <div className="flex gap-6">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-primary">
+            {user.totalSessions}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            Sessions Taken
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="flex items-center gap-1 text-2xl font-bold">
+            {upcomingBookings.length}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            Upcoming Sessions
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // --- RENDER TABS BASED ON ROLE ---
+  const renderTabs = () => {
+    if (userRole === Role.ADMIN) {
+      // ADMIN TABS (Admin sees a simplified dashboard, main tool is /admin)
+      return (
         <Tabs defaultValue="info" className="w-full">
           <TabsList className="mb-6">
-            <TabsTrigger value="info">Personal Info</TabsTrigger>
-            <TabsTrigger value="bookings">Booking History</TabsTrigger>
-            {user.isTutor && (
-              <>
-                <TabsTrigger value="availability">Availability</TabsTrigger>
-                <TabsTrigger value="lectures">Lectures</TabsTrigger>
-                <TabsTrigger value="profile">Edit Profile</TabsTrigger>
-                <TabsTrigger value="reviews">My Reviews</TabsTrigger>
-              </>
-            )}
+            <TabsTrigger value="info">Admin Info</TabsTrigger>
           </TabsList>
-
-          {/* ... (Rest of the TabsContent is unchanged) ... */}
           <TabsContent value="info">
             <Card className="p-6">
-              <h2 className="mb-6 text-2xl font-bold">Personal Information</h2>
+              <h2 className="mb-6 text-2xl font-bold">Administrator Account</h2>
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <User className="h-5 w-5 text-muted-foreground" />
@@ -236,157 +269,258 @@ const DashboardPage = () => {
                 <div className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <div className="text-sm text-muted-foreground">
-                      Email Address
-                    </div>
+                    <div className="text-sm text-muted-foreground">Email Address</div>
                     <div className="font-medium">{user.email}</div>
                   </div>
                 </div>
+                <div className="flex items-center gap-3 pt-4">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                  <div>
+                    <div className="text-sm text-muted-foreground">Role</div>
+                    <div className="font-medium">Administrator</div>
+                  </div>
+                </div>
+                <Button asChild className="mt-4">
+                  <Link to="/admin">Go to Admin Panel</Link>
+                </Button>
               </div>
             </Card>
           </TabsContent>
+        </Tabs>
+      );
+    }
 
-          <TabsContent value="bookings">
-            <div className="space-y-6">
-              <Card className="p-6">
-                <h2 className="mb-6 text-2xl font-bold">Upcoming Sessions</h2>
-                <div className="space-y-4">
-                  {upcomingBookings.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      No upcoming sessions
-                    </p>
-                  ) : (
-                    upcomingBookings.map((booking: Booking) => (
-                      <div
-                        key={booking.id}
-                        className="flex items-center justify-between rounded-lg border bg-card p-4"
-                      >
-                        <div className="flex-1">
-                          <div className="mb-1 flex items-center gap-2">
-                            <h3 className="font-semibold">
-                              {user.isTutor
-                                ? `Student: ${booking.studentName}`
-                                : booking.tutorName}
-                            </h3>
-                            <Badge variant={getStatusColor(booking.status)}>
-                              {booking.status}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {booking.subject}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span>
-                              {new Date(booking.date).toLocaleDateString(
-                                "en-IN",
-                                {
-                                  month: "short",
-                                  day: "numeric",
-                                }
-                              )}
-                            </span>
-                          </div>
-                          <span className="text-muted-foreground">
-                            {booking.time}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </Card>
-
-              <Card className="p-6">
-                <h2 className="mb-6 text-2xl font-bold">Past Sessions</h2>
-                <div className="space-y-4">
-                  {pastBookings.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      No past sessions
-                    </p>
-                  ) : (
-                    pastBookings.map((booking: Booking) => (
-                      <div
-                        key={booking.id}
-                        className="flex items-center justify-between rounded-lg border bg-card p-4"
-                      >
-                        <div className="flex-1">
-                          <div className="mb-1 flex items-center gap-2">
-                            <h3 className="font-semibold">
-                              {user.isTutor
-                                ? `Student: ${booking.studentName}`
-                                : booking.tutorName}
-                            </h3>
-                            <Badge variant={getStatusColor(booking.status)}>
-                              {booking.status}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {booking.subject}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span>
-                              {new Date(booking.date).toLocaleDateString(
-                                "en-IN",
-                                {
-                                  month: "short",
-                                  day: "numeric",
-                                }
-                              )}
-                            </span>
-                          </div>
-                          <span className="text-muted-foreground">
-                            {booking.time}
-                          </span>
-
-                          {!user.isTor && !booking.hasReview && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleOpenReviewModal(booking)}
-                            >
-                              Leave Review
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </Card>
-            </div>
-          </TabsContent>
-
+    // STUDENT & TUTOR TABS
+    return (
+      <Tabs defaultValue="info" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="info">Personal Info</TabsTrigger>
+          <TabsTrigger value="bookings">Booking History</TabsTrigger>
           {user.isTutor && (
             <>
-              <TabsContent value="availability">
-                <ManageAvailability />
-              </TabsContent>
-
-              <TabsContent value="lectures">
-                <ManageLectures />
-              </TabsContent>
-
-              <TabsContent value="profile">
-                <EditProfile />
-              </TabsContent>
-              
-              <TabsContent value="reviews">
-                <Card className="p-6">
-                  <h2 className="mb-6 text-2xl font-bold">Your Student Reviews</h2>
-                  <ReviewsList reviews={user.reviews} />
-                </Card>
-              </TabsContent>
+              <TabsTrigger value="availability">Availability</TabsTrigger>
+              <TabsTrigger value="lectures">Lectures</TabsTrigger>
+              <TabsTrigger value="profile">Edit Profile</TabsTrigger>
+              <TabsTrigger value="reviews">My Reviews</TabsTrigger>
             </>
           )}
-        </Tabs>
+        </TabsList>
+
+        {/* Personal Info Tab */}
+        <TabsContent value="info">
+          <Card className="p-6">
+            <h2 className="mb-6 text-2xl font-bold">Personal Information</h2>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <User className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="text-sm text-muted-foreground">Full Name</div>
+                  <div className="font-medium">{user.name}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Mail className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="text-sm text-muted-foreground">
+                    Email Address
+                  </div>
+                  <div className="font-medium">{user.email}</div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Bookings Tab */}
+        <TabsContent value="bookings">
+          <div className="space-y-6">
+            <Card className="p-6">
+              <h2 className="mb-6 text-2xl font-bold">Upcoming Sessions</h2>
+              <div className="space-y-4">
+                {upcomingBookings.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    No upcoming sessions
+                  </p>
+                ) : (
+                  upcomingBookings.map((booking: Booking) => (
+                    <div
+                      key={booking.id}
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-lg border bg-card p-4 gap-4"
+                    >
+                      <div className="flex-1">
+                        <div className="mb-1 flex items-center gap-2">
+                          <h3 className="font-semibold">
+                            {user.isTutor
+                              ? `Student: ${booking.studentName}`
+                              : booking.tutorName}
+                          </h3>
+                          <Badge variant={getStatusColor(booking.status)} className={booking.status === 'ongoing' ? 'animate-pulse' : ''}>
+                            {booking.status === 'ongoing' && <Clock className="h-3 w-3 mr-1.5" />}
+                            {booking.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {booking.subject}
+                        </p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm w-full sm:w-auto">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>
+                            {new Date(booking.date).toLocaleDateString(
+                              "en-IN",
+                              {
+                                month: "short",
+                                day: "numeric",
+                              }
+                            )}
+                          </span>
+                           <span className="text-muted-foreground ml-2">
+                            {booking.time}
+                          </span>
+                        </div>
+                        
+                        <Button 
+                          asChild 
+                          size="sm" 
+                          className="w-full sm:w-auto"
+                          disabled={!booking.meetingUrl}
+                        >
+                          <a href={booking.meetingUrl || '#'} target="_blank" rel="noopener noreferrer" onClick={(e) => !booking.meetingUrl && e.preventDefault()}>
+                            <Video className="h-4 w-4 mr-2" />
+                            Join Session
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+
+            {/* Past Sessions Card */}
+            <Card className="p-6">
+              <h2 className="mb-6 text-2xl font-bold">Past Sessions</h2>
+              <div className="space-y-4">
+                {pastBookings.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    No past sessions
+                  </p>
+                ) : (
+                  pastBookings.map((booking: Booking) => (
+                    <div
+                      key={booking.id}
+                      className="flex items-center justify-between rounded-lg border bg-card p-4"
+                    >
+                      <div className="flex-1">
+                        <div className="mb-1 flex items-center gap-2">
+                          <h3 className="font-semibold">
+                            {user.isTutor
+                              ? `Student: ${booking.studentName}`
+                              : booking.tutorName}
+                          </h3>
+                          <Badge variant={getStatusColor(booking.status)}>
+                            {booking.status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {booking.subject}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>
+                            {new Date(booking.date).toLocaleDateString(
+                              "en-IN",
+                              {
+                                month: "short",
+                                day: "numeric",
+                              }
+                            )}
+                          </span>
+                        </div>
+                        <span className="text-muted-foreground">
+                          {booking.time}
+                        </span>
+
+                        {!user.isTutor && !booking.hasReview && booking.status === 'completed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenReviewModal(booking)}
+                          >
+                            Leave Review
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Tutor-specific Tabs */}
+        {user.isTutor && (
+          <>
+            <TabsContent value="availability">
+              <ManageAvailability />
+            </TabsContent>
+
+            <TabsContent value="lectures">
+              <ManageLectures />
+            </TabsContent>
+
+            <TabsContent value="profile">
+              <EditProfile />
+            </TabsContent>
+            
+            <TabsContent value="reviews">
+              <Card className="p-6">
+                <h2 className="mb-6 text-2xl font-bold">Your Student Reviews</h2>
+                <ReviewsList reviews={user.reviews} />
+              </Card>
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+
+      <main className="container mx-auto px-4 py-8">
+        
+        <ApplicationStatusAlert />
+
+        {/* Header Card */}
+        <Card className="mb-6 p-8">
+          <div className="flex items-start gap-6">
+            <Avatar className="h-24 w-24">
+              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarFallback className="bg-accent text-2xl font-semibold text-primary">
+                {getInitials(user.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <h1 className="mb-2 text-3xl font-bold">{user.name}</h1>
+              <p className="mb-4 text-muted-foreground">{user.email}</p>
+              {/* Render the stats based on role */}
+              {renderHeaderStats()}
+            </div>
+          </div>
+        </Card>
+
+        {/* Render tabs based on role */}
+        {renderTabs()}
+
       </main>
 
+      {/* Review Modal */}
       {selectedBooking && (
         <ReviewForm
           isOpen={reviewModalOpen}

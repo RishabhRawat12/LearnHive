@@ -1,3 +1,4 @@
+// rishabhrawat12/learnhive/LearnHive-7537ae6c8f879fa606a7578eca3423fa2a6e5132/backend/prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
   output   = "../node_modules/.prisma/client"
@@ -9,17 +10,17 @@ datasource db {
 }
 
 model User {
-  id            Int     @id @default(autoincrement())
-  email         String  @unique
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
   name          String
   password_hash String
-  role          Role    @default(student)
-  created_at    DateTime @default(now())
+  role          Role     @default(student)
+  created_at    DateTime @default(now()) // --- FIX: Attribute on the same line ---
   avatar_url    String?
 
-  tutorProfile  TutorProfile?
-  bookings      Booking[]
-  reviews       Review[]
+  tutorProfile TutorProfile?
+  bookings     Booking[]
+  reviews      Review[]
 }
 
 enum Role {
@@ -35,51 +36,53 @@ enum TutorStatus {
 }
 
 model TutorProfile {
-  user_id     Int     @id
-  bio         String? @db.Text
-  hourly_rate Decimal? @db.Decimal(10, 2)
-  avatar_url  String?
-  status      TutorStatus @default(PENDING)
-  application_message String? @db.Text
-  subjects_applying_for String? 
+  user_id               Int         @id
+  bio                   String?     @db.Text // --- FIX: Attribute on the same line ---
+  hourly_rate           Decimal?    @db.Decimal(10, 2)
+  avatar_url            String?
+  status                TutorStatus @default(PENDING)
+  application_message   String?     @db.Text
+  subjects_applying_for String?
   credentials_url       String?
-  rejection_message     String? @db.Text
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  skills Skill[]
+  rejection_message     String?     @db.Text // --- FIX: Attribute on the same line ---
+
+  user         User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  skills       Skill[]
   availability Availability[]
-  reviews Review[]
-  lectures Lecture[]
+  reviews      Review[]
+  lectures     Lecture[]
 }
 
 model Skill {
-  id                Int     @id @default(autoincrement())
-  tutor_profile_id  Int
-  name              String
-  experienceLevel   String
-  hourlyRate        Decimal @db.Decimal(10, 2)
+  id               Int     @id @default(autoincrement())
+  tutor_profile_id Int
+  name             String
+  experienceLevel  String
+  hourlyRate       Decimal @db.Decimal(10, 2)
 
   tutorProfile TutorProfile @relation(fields: [tutor_profile_id], references: [user_id], onDelete: Cascade)
 }
 
 model Availability {
-  id              Int     @id @default(autoincrement())
-  tutor_user_id   Int
-  start_time      DateTime
-  end_time        DateTime
-  is_booked       Boolean @default(false)
+  id            Int      @id @default(autoincrement()) // --- FIX: Combined lines 68 & 69 ---
+  tutor_user_id Int
+  start_time    DateTime
+  end_time      DateTime
+  is_booked     Boolean  @default(false)
 
   tutorProfile TutorProfile @relation(fields: [tutor_user_id], references: [user_id], onDelete: Cascade)
   booking      Booking?
 }
 
 model Booking {
-  id                Int     @id @default(autoincrement())
+  id                Int           @id @default(autoincrement())
   student_user_id   Int
-  availability_id   Int     @unique
+  availability_id   Int           @unique
   status            BookingStatus @default(upcoming)
-  created_at        DateTime @default(now())
+  created_at        DateTime      @default(now())
+  meetingUrl        String? // --- This is the new field you requested ---
 
-  student User @relation(fields: [student_user_id], references: [id], onDelete: Cascade)
+  student      User         @relation(fields: [student_user_id], references: [id], onDelete: Cascade)
   availability Availability @relation(fields: [availability_id], references: [id], onDelete: Cascade)
   review       Review?
 }
@@ -91,24 +94,24 @@ enum BookingStatus {
 }
 
 model Review {
-  id              Int     @id @default(autoincrement())
-  booking_id      Int     @unique
+  id              Int      @id @default(autoincrement())
+  booking_id      Int      @unique
   student_user_id Int
   tutor_user_id   Int
   rating          Int
-  comment         String? @db.Text
+  comment         String?  @db.Text // --- FIX: Attribute on the same line ---
   created_at      DateTime @default(now())
 
-  booking Booking @relation(fields: [booking_id], references: [id], onDelete: Cascade)
-  student User @relation(fields: [student_user_id], references: [id], onDelete: NoAction)
-  tutor TutorProfile @relation(fields: [tutor_user_id], references: [user_id], onDelete: Cascade)
+  booking Booking      @relation(fields: [booking_id], references: [id], onDelete: Cascade)
+  student User         @relation(fields: [student_user_id], references: [id], onDelete: NoAction)
+  tutor   TutorProfile @relation(fields: [tutor_user_id], references: [user_id], onDelete: Cascade)
 }
 
 model Lecture {
-  id            Int     @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   tutor_user_id Int
   title         String
-  description   String? @db.Text
+  description   String?  @db.Text // --- FIX: Attribute on the same line ---
   video_url     String
 
   tutor TutorProfile @relation(fields: [tutor_user_id], references: [user_id], onDelete: Cascade)
