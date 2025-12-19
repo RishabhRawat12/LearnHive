@@ -10,6 +10,5 @@ Built with React, TypeScript, and Vite, and styled with Tailwind CSS and shadcn/
 * **Language:** TypeScript
 * **Build Tool:** Vite
 * **Styling:** Tailwind CSS
-* **UI Components:** shadcn/ui
 * **Routing:** React Router
 * **State Management:** React Query
